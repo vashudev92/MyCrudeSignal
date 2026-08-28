@@ -1,0 +1,22 @@
+# Environment & Secrets
+.env
+.streamlit/secrets.toml
+token_cache.json
+*.token
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Virtual Environment
+venv/
+env/
+.venv/

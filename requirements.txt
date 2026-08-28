@@ -1,0 +1,13 @@
+# Crude MCX Signal Dashboard — Dependencies for Local & Cloud (Streamlit Community Cloud)
+
+streamlit>=1.35.0
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.20.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pytz>=2024.1
+feedparser>=6.0.11
+websockets>=12.0
+websocket-client>=1.7.0
+protobuf>=4.24.0

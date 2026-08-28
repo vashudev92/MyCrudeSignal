@@ -1,0 +1,101 @@
+=== JULY 2026 AUDIT REPORT ===
+Model: Supertrend & 20 EM | SL: 15.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 16 | Scratch: 0 | Net PnL: Rs. -6,109 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 15.0 | RR: 1:1.5 | Trades: 18 | W: 3 | L: 14 | Scratch: 1 | Net PnL: Rs. -7,940 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 15.0 | RR: 1:1.5 | Trades: 23 | W: 9 | L: 14 | Scratch: 0 | Net PnL: Rs. -2,366 | WR: 39.1%
+Model: RSI + MACD Momentu | SL: 15.0 | RR: 1:1.5 | Trades: 21 | W: 9 | L: 12 | Scratch: 0 | Net PnL: Rs. -459 | WR: 42.9%
+Model: Supertrend & 20 EM | SL: 15.0 | RR: 1:1.8 | Trades: 23 | W: 6 | L: 16 | Scratch: 1 | Net PnL: Rs. -5,885 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 15.0 | RR: 1:1.8 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -8,614 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 15.0 | RR: 1:1.8 | Trades: 23 | W: 7 | L: 14 | Scratch: 2 | Net PnL: Rs. -3,040 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 15.0 | RR: 1:1.8 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +215 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 15.0 | RR: 1:2.0 | Trades: 23 | W: 5 | L: 16 | Scratch: 2 | Net PnL: Rs. -6,484 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 15.0 | RR: 1:2.0 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -8,314 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 15.0 | RR: 1:2.0 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -3,489 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 15.0 | RR: 1:2.0 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +1,412 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 15.0 | RR: 1:2.2 | Trades: 23 | W: 5 | L: 16 | Scratch: 2 | Net PnL: Rs. -4,762 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 15.0 | RR: 1:2.2 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -8,015 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 15.0 | RR: 1:2.2 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -1,618 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 15.0 | RR: 1:2.2 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +3,583 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 15.0 | RR: 1:2.5 | Trades: 23 | W: 4 | L: 16 | Scratch: 3 | Net PnL: Rs. -5,735 | WR: 17.4%
+Model: 20 EMA / Pivot Pul | SL: 15.0 | RR: 1:2.5 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -7,876 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 15.0 | RR: 1:2.5 | Trades: 23 | W: 5 | L: 14 | Scratch: 4 | Net PnL: Rs. -2,366 | WR: 21.7%
+Model: RSI + MACD Momentu | SL: 15.0 | RR: 1:2.5 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +5,156 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 18.0 | RR: 1:1.5 | Trades: 23 | W: 6 | L: 16 | Scratch: 1 | Net PnL: Rs. -8,280 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 18.0 | RR: 1:1.5 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -10,560 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 18.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 14 | Scratch: 2 | Net PnL: Rs. -5,136 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 18.0 | RR: 1:1.5 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. -1,432 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 18.0 | RR: 1:1.8 | Trades: 23 | W: 5 | L: 16 | Scratch: 2 | Net PnL: Rs. -8,280 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 18.0 | RR: 1:1.8 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -10,021 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 18.0 | RR: 1:1.8 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -4,866 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 18.0 | RR: 1:1.8 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +724 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 18.0 | RR: 1:2.0 | Trades: 23 | W: 5 | L: 16 | Scratch: 2 | Net PnL: Rs. -7,382 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 18.0 | RR: 1:2.0 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -9,897 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 18.0 | RR: 1:2.0 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -3,788 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 18.0 | RR: 1:2.0 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +2,161 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 18.0 | RR: 1:2.2 | Trades: 23 | W: 4 | L: 16 | Scratch: 3 | Net PnL: Rs. -8,460 | WR: 17.4%
+Model: 20 EMA / Pivot Pul | SL: 18.0 | RR: 1:2.2 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -9,718 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 18.0 | RR: 1:2.2 | Trades: 23 | W: 5 | L: 14 | Scratch: 4 | Net PnL: Rs. -4,687 | WR: 21.7%
+Model: RSI + MACD Momentu | SL: 18.0 | RR: 1:2.2 | Trades: 21 | W: 8 | L: 12 | Scratch: 1 | Net PnL: Rs. +3,598 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 18.0 | RR: 1:2.5 | Trades: 23 | W: 4 | L: 16 | Scratch: 3 | Net PnL: Rs. -8,766 | WR: 17.4%
+Model: 20 EMA / Pivot Pul | SL: 18.0 | RR: 1:2.5 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -9,448 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 18.0 | RR: 1:2.5 | Trades: 23 | W: 5 | L: 14 | Scratch: 4 | Net PnL: Rs. -4,724 | WR: 21.7%
+Model: RSI + MACD Momentu | SL: 18.0 | RR: 1:2.5 | Trades: 21 | W: 6 | L: 12 | Scratch: 3 | Net PnL: Rs. -122 | WR: 28.6%
+Model: Supertrend & 20 EM | SL: 20.0 | RR: 1:1.5 | Trades: 23 | W: 6 | L: 15 | Scratch: 2 | Net PnL: Rs. -7,981 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 20.0 | RR: 1:1.5 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -11,558 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 20.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -4,487 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 20.0 | RR: 1:1.5 | Trades: 21 | W: 9 | L: 11 | Scratch: 1 | Net PnL: Rs. +1,163 | WR: 42.9%
+Model: Supertrend & 20 EM | SL: 20.0 | RR: 1:1.8 | Trades: 23 | W: 6 | L: 15 | Scratch: 2 | Net PnL: Rs. -6,184 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 20.0 | RR: 1:1.8 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -11,195 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 20.0 | RR: 1:1.8 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -2,391 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 20.0 | RR: 1:1.8 | Trades: 21 | W: 9 | L: 11 | Scratch: 1 | Net PnL: Rs. +3,858 | WR: 42.9%
+Model: Supertrend & 20 EM | SL: 20.0 | RR: 1:2.0 | Trades: 23 | W: 5 | L: 15 | Scratch: 3 | Net PnL: Rs. -6,983 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 20.0 | RR: 1:2.0 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -10,995 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 20.0 | RR: 1:2.0 | Trades: 23 | W: 6 | L: 13 | Scratch: 4 | Net PnL: Rs. -2,990 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 20.0 | RR: 1:2.0 | Trades: 21 | W: 9 | L: 11 | Scratch: 1 | Net PnL: Rs. +5,655 | WR: 42.9%
+Model: Supertrend & 20 EM | SL: 20.0 | RR: 1:2.2 | Trades: 23 | W: 5 | L: 15 | Scratch: 3 | Net PnL: Rs. -8,077 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 20.0 | RR: 1:2.2 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -10,796 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 20.0 | RR: 1:2.2 | Trades: 23 | W: 6 | L: 13 | Scratch: 4 | Net PnL: Rs. -3,884 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 20.0 | RR: 1:2.2 | Trades: 21 | W: 8 | L: 11 | Scratch: 2 | Net PnL: Rs. +3,163 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 20.0 | RR: 1:2.5 | Trades: 23 | W: 5 | L: 15 | Scratch: 3 | Net PnL: Rs. -7,178 | WR: 21.7%
+Model: 20 EMA / Pivot Pul | SL: 20.0 | RR: 1:2.5 | Trades: 18 | W: 2 | L: 14 | Scratch: 2 | Net PnL: Rs. -10,496 | WR: 11.1%
+Model: Standard Pivot Poi | SL: 20.0 | RR: 1:2.5 | Trades: 23 | W: 6 | L: 13 | Scratch: 4 | Net PnL: Rs. -2,687 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 20.0 | RR: 1:2.5 | Trades: 21 | W: 7 | L: 11 | Scratch: 3 | Net PnL: Rs. +2,016 | WR: 33.3%
+Model: Supertrend & 20 EM | SL: 22.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 14 | Scratch: 2 | Net PnL: Rs. -5,835 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 22.0 | RR: 1:1.5 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -9,812 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 22.0 | RR: 1:1.5 | Trades: 23 | W: 8 | L: 12 | Scratch: 3 | Net PnL: Rs. -1,992 | WR: 34.8%
+Model: RSI + MACD Momentu | SL: 22.0 | RR: 1:1.5 | Trades: 21 | W: 10 | L: 10 | Scratch: 1 | Net PnL: Rs. +4,257 | WR: 47.6%
+Model: Supertrend & 20 EM | SL: 22.0 | RR: 1:1.8 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -5,505 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 22.0 | RR: 1:1.8 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -9,239 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 22.0 | RR: 1:1.8 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -1,333 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 22.0 | RR: 1:1.8 | Trades: 21 | W: 9 | L: 10 | Scratch: 2 | Net PnL: Rs. +5,575 | WR: 42.9%
+Model: Supertrend & 20 EM | SL: 22.0 | RR: 1:2.0 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -7,719 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 22.0 | RR: 1:2.0 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -10,239 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 22.0 | RR: 1:2.0 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -3,327 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 22.0 | RR: 1:2.0 | Trades: 21 | W: 8 | L: 10 | Scratch: 3 | Net PnL: Rs. +3,263 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 22.0 | RR: 1:2.2 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -7,060 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 22.0 | RR: 1:2.2 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -10,019 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 22.0 | RR: 1:2.2 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -2,449 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 22.0 | RR: 1:2.2 | Trades: 21 | W: 7 | L: 10 | Scratch: 4 | Net PnL: Rs. +1,797 | WR: 33.3%
+Model: Supertrend & 20 EM | SL: 22.0 | RR: 1:2.5 | Trades: 23 | W: 6 | L: 14 | Scratch: 3 | Net PnL: Rs. -6,072 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 22.0 | RR: 1:2.5 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -9,690 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 22.0 | RR: 1:2.5 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -3,016 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 22.0 | RR: 1:2.5 | Trades: 21 | W: 7 | L: 10 | Scratch: 4 | Net PnL: Rs. +2,199 | WR: 33.3%
+Model: Supertrend & 20 EM | SL: 25.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -5,111 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 25.0 | RR: 1:1.5 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -10,414 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 25.0 | RR: 1:1.5 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -3,863 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 25.0 | RR: 1:1.5 | Trades: 21 | W: 10 | L: 9 | Scratch: 2 | Net PnL: Rs. +6,403 | WR: 47.6%
+Model: Supertrend & 20 EM | SL: 25.0 | RR: 1:1.8 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -6,859 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 25.0 | RR: 1:1.8 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -11,155 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 25.0 | RR: 1:1.8 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -4,924 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 25.0 | RR: 1:1.8 | Trades: 21 | W: 8 | L: 9 | Scratch: 4 | Net PnL: Rs. +2,776 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 25.0 | RR: 1:2.0 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -6,110 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 25.0 | RR: 1:2.0 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -10,906 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 25.0 | RR: 1:2.0 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -3,926 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 25.0 | RR: 1:2.0 | Trades: 21 | W: 8 | L: 9 | Scratch: 4 | Net PnL: Rs. +3,575 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 25.0 | RR: 1:2.2 | Trades: 23 | W: 7 | L: 13 | Scratch: 3 | Net PnL: Rs. -5,362 | WR: 30.4%
+Model: 20 EMA / Pivot Pul | SL: 25.0 | RR: 1:2.2 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -10,656 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 25.0 | RR: 1:2.2 | Trades: 23 | W: 7 | L: 12 | Scratch: 4 | Net PnL: Rs. -4,813 | WR: 30.4%
+Model: RSI + MACD Momentu | SL: 25.0 | RR: 1:2.2 | Trades: 21 | W: 8 | L: 9 | Scratch: 4 | Net PnL: Rs. +3,658 | WR: 38.1%
+Model: Supertrend & 20 EM | SL: 25.0 | RR: 1:2.5 | Trades: 23 | W: 6 | L: 13 | Scratch: 4 | Net PnL: Rs. -9,011 | WR: 26.1%
+Model: 20 EMA / Pivot Pul | SL: 25.0 | RR: 1:2.5 | Trades: 18 | W: 3 | L: 13 | Scratch: 2 | Net PnL: Rs. -11,497 | WR: 16.7%
+Model: Standard Pivot Poi | SL: 25.0 | RR: 1:2.5 | Trades: 23 | W: 6 | L: 12 | Scratch: 5 | Net PnL: Rs. -7,246 | WR: 26.1%
+Model: RSI + MACD Momentu | SL: 25.0 | RR: 1:2.5 | Trades: 21 | W: 8 | L: 9 | Scratch: 4 | Net PnL: Rs. +3,268 | WR: 38.1%
