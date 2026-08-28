@@ -595,6 +595,36 @@ def is_market_open() -> bool:
 # ─── Main Application ─────────────────────────────────────────────────────────
 
 def main():
+    # ── Master Security PIN Gate (Optional via Secrets) ────────────────────────
+    app_pin = ""
+    try:
+        if hasattr(st, "secrets") and "APP_PIN" in st.secrets:
+            app_pin = str(st.secrets["APP_PIN"]).strip()
+        elif os.getenv("APP_PIN"):
+            app_pin = os.getenv("APP_PIN", "").strip()
+    except Exception:
+        pass
+
+    if app_pin:
+        if not st.session_state.get("pin_authenticated", False):
+            st.markdown("""
+            <div style="max-width:420px; margin:40px auto; padding:24px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.06); text-align:center;">
+                <div style="font-size:2.2rem; margin-bottom:8px;">🔒</div>
+                <h3 style="margin:0 0 4px 0; color:#0F172A; font-family:'Plus Jakarta Sans',sans-serif; font-size:1.1rem; font-weight:800;">CRUDE MCX PRO TERMINAL</h3>
+                <p style="color:#64748B; font-size:0.78rem; margin-bottom:16px;">This terminal is private. Enter your security PIN to unlock.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            col_p1, col_p2, col_p3 = st.columns([1, 1.4, 1])
+            with col_p2:
+                entered_pin = st.text_input("Security PIN", type="password", key="pin_gate_input", placeholder="Enter PIN...")
+                if st.button("🔓 Unlock Dashboard", type="primary", use_container_width=True):
+                    if entered_pin.strip() == app_pin:
+                        st.session_state["pin_authenticated"] = True
+                        st.rerun()
+                    else:
+                        st.error("Incorrect PIN. Access denied.")
+            st.stop()
+
     market_open = is_market_open()
     status_bg = "#ECFDF5" if market_open else "#FFF1F2"
     status_color = "#059669" if market_open else "#DC2626"
@@ -764,31 +794,63 @@ def main():
             st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
             with st.popover("📲 Telegram Alerts", use_container_width=True):
                 cur_tg_tok, cur_tg_chat, cur_tg_on = get_telegram_creds()
-                tg_status_txt = "🟢 Active" if (cur_tg_tok and cur_tg_chat) else "⚪ Not Connected"
-                st.markdown(f"**Telegram Mobile Alerts** ({tg_status_txt})")
-                st.caption("Receive instant BUY/SELL signals on your phone.")
-
-                inp_tg_token = st.text_input("Bot Token (from @BotFather)", value=cur_tg_tok, type="password")
-                inp_tg_chat = st.text_input("Chat ID (from @userinfobot)", value=cur_tg_chat)
-
-                col_tg1, col_tg2 = st.columns(2)
-                with col_tg1:
-                    if st.button("💾 Save Credentials", use_container_width=True, type="primary"):
-                        if inp_tg_token and inp_tg_chat:
-                            save_telegram_env_credentials(inp_tg_token, inp_tg_chat)
-                            st.success("Credentials saved to .env!")
-                            st.rerun()
-                        else:
-                            st.warning("Enter both Bot Token & Chat ID.")
-                with col_tg2:
-                    if st.button("📲 Test Ping", use_container_width=True):
-                        if inp_tg_token and inp_tg_chat:
-                            save_telegram_env_credentials(inp_tg_token, inp_tg_chat)
+                is_active = bool(cur_tg_tok and cur_tg_chat)
+                
+                if is_active:
+                    masked_chat = f"••••{str(cur_tg_chat)[-4:]}" if len(str(cur_tg_chat)) >= 4 else "••••"
+                    st.markdown(f"""
+                    <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:6px; padding:8px 10px; margin-bottom:8px;">
+                        <div style="color:#065F46; font-size:0.75rem; font-weight:800; display:flex; align-items:center; gap:4px;">
+                            <span>🔒 SECURED IN CLOUD SECRETS</span>
+                        </div>
+                        <div style="color:#047857; font-size:0.72rem; font-family:'JetBrains Mono',monospace; margin-top:2px;">
+                            Status: <b>Connected & Active</b><br>
+                            Chat ID: <b>{masked_chat}</b>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("📲 Send Test Ping to Phone", use_container_width=True, type="primary"):
                         ok, msg = send_telegram_test_message()
                         if ok:
                             st.success(msg)
                         else:
                             st.error(msg)
+
+                    with st.expander("⚙️ Change Credentials"):
+                        new_tok = st.text_input("New Bot Token", type="password", key="new_tok_inp", placeholder="Paste new token...")
+                        new_chat = st.text_input("New Chat ID", type="password", key="new_chat_inp", placeholder="Paste new chat ID...")
+                        if st.button("Save New Credentials", use_container_width=True):
+                            if new_tok and new_chat:
+                                save_telegram_env_credentials(new_tok, new_chat)
+                                st.success("Updated successfully!")
+                                st.rerun()
+                            else:
+                                st.warning("Please fill both fields.")
+                else:
+                    st.markdown("**Connect Telegram Mobile Alerts**")
+                    st.caption("Receive instant BUY/SELL signals on your phone.")
+                    inp_tg_token = st.text_input("Bot Token (from @BotFather)", type="password", placeholder="Paste token...")
+                    inp_tg_chat = st.text_input("Chat ID (from @userinfobot)", placeholder="Paste chat ID...")
+
+                    col_tg1, col_tg2 = st.columns(2)
+                    with col_tg1:
+                        if st.button("💾 Save", use_container_width=True, type="primary"):
+                            if inp_tg_token and inp_tg_chat:
+                                save_telegram_env_credentials(inp_tg_token, inp_tg_chat)
+                                st.success("Credentials saved!")
+                                st.rerun()
+                            else:
+                                st.warning("Enter both Bot Token & Chat ID.")
+                    with col_tg2:
+                        if st.button("📲 Test Ping", use_container_width=True):
+                            if inp_tg_token and inp_tg_chat:
+                                save_telegram_env_credentials(inp_tg_token, inp_tg_chat)
+                            ok, msg = send_telegram_test_message()
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
 
         # Pulse Strip
         c_p_color = "#059669" if price_change >= 0 else "#DC2626"
