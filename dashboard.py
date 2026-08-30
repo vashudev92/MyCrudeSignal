@@ -1359,6 +1359,32 @@ SIGNAL AT: <b>{signal.timestamp}</b>
 
                 for t in report.trades:
                     entry_t_str = t.entry_time.strftime("%d-%b %H:%M") if isinstance(t.entry_time, datetime) else str(t.entry_time)
+                    
+                    # Exit Time Formatting
+                    if isinstance(t.exit_time, datetime):
+                        exit_t_str = t.exit_time.strftime("%d-%b %H:%M")
+                    elif t.exit_time is not None:
+                        try:
+                            exit_t_str = pd.to_datetime(t.exit_time).strftime("%d-%b %H:%M")
+                        except Exception:
+                            exit_t_str = str(t.exit_time)
+                    else:
+                        exit_t_str = "--"
+
+                    # Duration Calculation
+                    try:
+                        e_dt = pd.to_datetime(t.entry_time)
+                        x_dt = pd.to_datetime(t.exit_time)
+                        dur_mins = int((x_dt - e_dt).total_seconds() // 60)
+                        if dur_mins < 60:
+                            dur_str = f"{dur_mins}m"
+                        else:
+                            h = dur_mins // 60
+                            m = dur_mins % 60
+                            dur_str = f"{h}h {m}m" if m > 0 else f"{h}h"
+                    except Exception:
+                        dur_str = f"{t.holding_candles * 30}m" if hasattr(t, "holding_candles") and t.holding_candles > 0 else "--"
+
                     running_cap += t.net_option_pnl_rs
 
                     gross_str = f"+₹{t.gross_option_pnl_rs:,.0f}" if t.gross_option_pnl_rs >= 0 else f"-₹{abs(t.gross_option_pnl_rs):,.0f}"
@@ -1367,6 +1393,8 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                     journal_rows.append({
                         "Trade #": f"#{t.trade_id:02d}",
                         "Entry Time": entry_t_str,
+                        "Exit Time": exit_t_str,
+                        "Duration": dur_str,
                         "Action": t.option_action,
                         "Contract": f"{t.strike} {t.option_type}",
                         "Buy (₹)": f"₹{t.option_buy_price:.2f}",
