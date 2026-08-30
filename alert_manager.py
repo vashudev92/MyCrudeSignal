@@ -199,7 +199,7 @@ class AlertManager:
 
         # ⛔ STRICT MARKET HOURS GUARD: Never alert on weekends or outside market hours
         if not force and not is_market_open():
-            print(f"[AlertManager] ⏸️ Market Closed (Weekend/Night). Suppressed {signal_type} alert.")
+            print(f"[AlertManager] [PAUSED] Market Closed (Weekend/Night). Suppressed {signal_type} alert.")
             return False
 
         sig_key = f"{strategy_name}_{signal_type}_{contract_name}"
