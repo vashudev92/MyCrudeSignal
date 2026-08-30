@@ -415,27 +415,8 @@ class CrudeBacktester:
                 trigger_buy = False
                 trigger_sell = False
 
-                # ── MODEL 0: 🚀 4-Condition Supertrend (11,2 / 7,3) + RSI(60/40) + MACD + Volume ──
-                if "4-Condition" in strategy_model or "Dual Supertrend" in strategy_model:
-                    # 1. Dual Supertrend Crossover (Fast 11,2 crosses/is above Slow 7,3)
-                    st_bull = (row["dir_fast"] == 1 and (prev_row["dir_fast"] == -1 or row["dir_slow"] == 1 or price > float(row["st_fast"])))
-                    st_bear = (row["dir_fast"] == -1 and (prev_row["dir_fast"] == 1 or row["dir_slow"] == -1 or price < float(row["st_fast"])))
-                    # 2. MACD in positive/negative territory & histogram alignment
-                    macd_bull = (float(row["macd_line"]) > 0 and float(row["macd_hist"]) > 0)
-                    macd_bear = (float(row["macd_line"]) < 0 and float(row["macd_hist"]) < 0)
-                    # 3. RSI 14 (>60 for Call, <40 for Put)
-                    rsi_bull = (float(row["rsi"]) >= 60.0)
-                    rsi_bear = (float(row["rsi"]) <= 40.0)
-                    # 4. Volume > 20-period Volume SMA
-                    vol_ok = (float(row["volume"]) >= float(row["vol_sma20"]) * 0.90)
-
-                    if st_bull and macd_bull and rsi_bull and vol_ok:
-                        trigger_buy = True
-                    elif st_bear and macd_bear and rsi_bear and vol_ok:
-                        trigger_sell = True
-
                 # ── MODEL 1: Supertrend & 20 EMA Momentum ─────────────────────
-                elif "Supertrend" in strategy_model:
+                if "Supertrend" in strategy_model:
                     if row["st_direction"] == "BULLISH" and price > ema20 and ema20 >= ema50:
                         if prev_row["st_direction"] == "BEARISH" or prev_row["close"] <= prev_row["ema20"] + 3.0 or (price - open_p) >= (0.35 * atr):
                             trigger_buy = True

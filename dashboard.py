@@ -707,7 +707,6 @@ def main():
     token_str = token_manager.get_token() if has_live_token else ""
 
     strategy_options = [
-        "🚀 4-Condition Supertrend (11,2/7,3) + RSI(60/40) + MACD + Volume",
         "🎯 RSI + MACD Confluence",
         "💎 ICT & Fair Value Gap (FVG) + Liquidity Sweep",
         "📰 High-Impact Energy News Breakout",
@@ -813,7 +812,7 @@ def main():
 
         st.markdown(f"""
         <div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#CBD5E1;">
-            <div style="font-size:0.64rem; font-weight:800; color:#475569; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">⚡ 4-Condition Strategy Live Alignment Checklist:</div>
+            <div style="font-size:0.64rem; font-weight:800; color:#475569; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">⚡ Live Market Technical Indicator Alignment:</div>
             <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-family:'JetBrains Mono',monospace; font-size:0.72rem;">
                 <div style="border-left: 3px solid {st_color}; padding-left: 6px;">
                     <span style="color:#64748B;">1. SUPERTREND:</span> <b style="color:{st_color};">{st_txt}</b>

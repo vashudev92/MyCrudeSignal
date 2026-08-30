@@ -146,31 +146,21 @@ class SignalEngine:
         sell_conditions: List[str] = []
 
         # ── 1. Evaluate Selected Model ─────────────────────────────────────────
-        if "4-Condition" in strategy_model or "Dual Supertrend" in strategy_model:
-            # 🚀 4-Condition Setup: Dual Supertrend (11,2/7,3) + RSI(60/40) + MACD + Volume
-            # Condition 1: Dual Supertrend (Fast 11,2 vs Slow 7,3)
-            if indicators.st_fast_dir == 1 and (indicators.st_cross_bullish or indicators.st_slow_dir == 1 or price > indicators.st_fast):
-                buy_conditions.append(f"✅ Condition 1: Dual Supertrend Bullish (Fast 11,2: ₹{indicators.st_fast:.0f} > Slow 7,3: ₹{indicators.st_slow:.0f})")
-            if indicators.st_fast_dir == -1 and (indicators.st_cross_bearish or indicators.st_slow_dir == -1 or price < indicators.st_fast):
-                sell_conditions.append(f"✅ Condition 1: Dual Supertrend Bearish (Fast 11,2: ₹{indicators.st_fast:.0f} < Slow 7,3: ₹{indicators.st_slow:.0f})")
+        if "RSI" in strategy_model or "Confluence" in strategy_model:
+            # 🎯 RSI + MACD Confluence Model
+            if indicators.macd_line > indicators.macd_signal:
+                buy_conditions.append("✅ MACD: Bullish crossover (Line > Signal)")
+            if 50.0 <= indicators.rsi <= 70.0:
+                buy_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in high-velocity expansion zone")
+            if price > ema20:
+                buy_conditions.append(f"✅ Trend: Price above 20 EMA (₹{ema20:.0f})")
 
-            # Condition 2: MACD in territory & positive/negative histogram
-            if indicators.macd_line > 0 and indicators.macd_histogram > 0:
-                buy_conditions.append(f"✅ Condition 2: MACD Bullish Territory (Line: {indicators.macd_line:+.2f} > 0, Hist: {indicators.macd_histogram:+.2f})")
-            if indicators.macd_line < 0 and indicators.macd_histogram < 0:
-                sell_conditions.append(f"✅ Condition 2: MACD Bearish Territory (Line: {indicators.macd_line:+.2f} < 0, Hist: {indicators.macd_histogram:+.2f})")
-
-            # Condition 3: RSI 14 (>60 for Call, <40 for Put)
-            if indicators.rsi >= 60.0:
-                buy_conditions.append(f"✅ Condition 3: RSI Bullish Confirmation ({indicators.rsi:.1f} >= 60.0)")
-            if indicators.rsi <= 40.0:
-                sell_conditions.append(f"✅ Condition 3: RSI Bearish Confirmation ({indicators.rsi:.1f} <= 40.0)")
-
-            # Condition 4: Volume Confirmation (Current Volume > 20-SMA)
-            if indicators.vol_above_sma20:
-                consec_txt = f" ({indicators.vol_consecutive_high} bars)" if indicators.vol_consecutive_high >= 2 else ""
-                buy_conditions.append(f"✅ Condition 4: Volume Surge > 20-SMA ({indicators.volume:,.0f} > {indicators.avg_volume_20:,.0f}){consec_txt}")
-                sell_conditions.append(f"✅ Condition 4: Volume Surge > 20-SMA ({indicators.volume:,.0f} > {indicators.avg_volume_20:,.0f}){consec_txt}")
+            if indicators.macd_line < indicators.macd_signal:
+                sell_conditions.append("✅ MACD: Bearish crossover (Line < Signal)")
+            if 30.0 <= indicators.rsi <= 50.0:
+                sell_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in downward momentum zone")
+            if price < ema20:
+                sell_conditions.append(f"✅ Trend: Price below 20 EMA (₹{ema20:.0f})")
 
         elif "ICT" in strategy_model or "FVG" in strategy_model:
             # 💎 ICT & Fair Value Gap (FVG) + Liquidity Sweep Model
