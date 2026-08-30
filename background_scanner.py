@@ -20,12 +20,13 @@ from upstox_client import get_client
 from instrument_finder import get_active_crude_instrument_key
 from indicators import calculate_pivot_points, compute_indicators
 from signal_engine import SignalEngine, SignalType
-from alert_manager import get_alert_manager
+from alert_manager import get_alert_manager, send_tp_sl_alert
 
 IST = pytz.timezone(IST_TIMEZONE)
 
 _scanner_thread: threading.Thread | None = None
 _scanner_running = False
+_active_trade_tracker: dict | None = None
 _lock = threading.Lock()
 
 
@@ -90,38 +91,97 @@ def _scanner_loop():
                         if ltp <= 0:
                             ltp = float(indicators.close)
 
-                        # Evaluate Setup 1: RSI + MACD Confluence
-                        signal = engine.generate_signal(
-                            indicators=indicators,
-                            strategy_model="🎯 RSI + MACD Confluence",
-                            news_flag="NEUTRAL",
-                            current_price=ltp,
-                            sl_pts=25.0,
-                            t1_rr=2.2,
-                            t2_rr=3.5,
-                            market_regime="🎯 Balanced Quality (ADX >= 18)",
-                            trailing_mode="❌ Pure Fixed SL"
-                        )
+                        global _active_trade_tracker
+                        
+                        # ── A. Monitor Active Trade for Target 1, Target 2, and Stop Loss Hits ──
+                        if _active_trade_tracker is not None:
+                            tr = _active_trade_tracker
+                            dir_mul = 1.0 if tr["direction"] == "BUY" else -1.0
+                            pts_move = (ltp - tr["entry_spot"]) * dir_mul
+                            cur_prem = max(5.0, round(tr["entry_premium"] + (pts_move * 0.50), 2))
+                            gross_rs = round((cur_prem - tr["entry_premium"]) * 100 * tr["lots"], 2)
 
-                        if signal.signal != SignalType.NEUTRAL:
-                            alert_mgr.trigger(
-                                signal_type=signal.signal.value,
-                                confidence=signal.confidence.value,
-                                entry=signal.entry_price,
-                                stop_loss=signal.option_stop_loss,
-                                target1=signal.option_target1,
-                                target2=signal.option_target2,
-                                strategy_name="🎯 Setup 1: RSI + MACD Confluence",
-                                contract_name=signal.option_contract,
-                                entry_premium=signal.option_buy_price,
-                                sl_premium=signal.option_stop_loss,
-                                t1_premium=signal.option_target1,
-                                t2_premium=signal.option_target2,
-                                risk_rs=signal.option_lot_risk_rs,
-                                t1_profit_rs=signal.option_lot_target1_rs,
-                                lots=1,
-                                timestamp=signal.timestamp,
+                            # 1. Target 2 Hit (Runner Target Met)
+                            if pts_move >= tr["t2_pts"]:
+                                send_tp_sl_alert(
+                                    event_type="TARGET2",
+                                    contract_name=tr["contract"],
+                                    pts_move=pts_move,
+                                    pnl_rs=gross_rs,
+                                    exit_premium=cur_prem,
+                                    lots=tr["lots"]
+                                )
+                                _active_trade_tracker = None
+
+                            # 2. Target 1 Hit (Book Profit / Lock Breakeven)
+                            elif pts_move >= tr["t1_pts"] and not tr.get("t1_alerted", False):
+                                send_tp_sl_alert(
+                                    event_type="TARGET1",
+                                    contract_name=tr["contract"],
+                                    pts_move=pts_move,
+                                    pnl_rs=gross_rs,
+                                    exit_premium=cur_prem,
+                                    lots=tr["lots"]
+                                )
+                                tr["t1_alerted"] = True
+
+                            # 3. Stop Loss Hit
+                            elif pts_move <= -tr["sl_pts"]:
+                                send_tp_sl_alert(
+                                    event_type="STOP_LOSS",
+                                    contract_name=tr["contract"],
+                                    pts_move=pts_move,
+                                    pnl_rs=gross_rs,
+                                    exit_premium=cur_prem,
+                                    lots=tr["lots"]
+                                )
+                                _active_trade_tracker = None
+
+                        # ── B. Scan for New Trade Entry Signal (If No Active Trade) ──
+                        else:
+                            signal = engine.generate_signal(
+                                indicators=indicators,
+                                strategy_model="🎯 RSI + MACD Confluence",
+                                news_flag="NEUTRAL",
+                                current_price=ltp,
+                                sl_pts=25.0,
+                                t1_rr=2.2,
+                                t2_rr=3.5,
+                                market_regime="🎯 Balanced Quality (ADX >= 18)",
+                                trailing_mode="❌ Pure Fixed SL"
                             )
+
+                            if signal.signal != SignalType.NEUTRAL:
+                                fired = alert_mgr.trigger(
+                                    signal_type=signal.signal.value,
+                                    confidence=signal.confidence.value,
+                                    entry=signal.entry_price,
+                                    stop_loss=signal.option_stop_loss,
+                                    target1=signal.option_target1,
+                                    target2=signal.option_target2,
+                                    strategy_name="🎯 Setup 1: RSI + MACD Confluence",
+                                    contract_name=signal.option_contract,
+                                    entry_premium=signal.option_buy_price,
+                                    sl_premium=signal.option_stop_loss,
+                                    t1_premium=signal.option_target1,
+                                    t2_premium=signal.option_target2,
+                                    risk_rs=signal.option_lot_risk_rs,
+                                    t1_profit_rs=signal.option_lot_target1_rs,
+                                    lots=1,
+                                    timestamp=signal.timestamp,
+                                )
+                                if fired:
+                                    _active_trade_tracker = {
+                                        "direction": signal.signal.value,
+                                        "contract": signal.option_contract,
+                                        "entry_spot": signal.entry_price,
+                                        "entry_premium": signal.option_buy_price,
+                                        "sl_pts": 25.0,
+                                        "t1_pts": 25.0 * 2.2,
+                                        "t2_pts": 25.0 * 3.5,
+                                        "lots": 1,
+                                        "t1_alerted": False
+                                    }
                 except Exception as e:
                     print(f"[BackgroundScanner] Scan error: {e}")
 

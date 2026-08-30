@@ -139,6 +139,63 @@ def _format_telegram_message(
     )
 
 
+def send_tp_sl_alert(
+    event_type: str,
+    contract_name: str,
+    pts_move: float,
+    pnl_rs: float,
+    exit_premium: float,
+    lots: int = 1,
+    timestamp: str = ""
+) -> bool:
+    """Sends Target 1, Target 2, and Stop Loss hit alerts to Telegram."""
+    token, chat_id, enabled = get_telegram_creds()
+    if not token or not chat_id:
+        return False
+
+    if not timestamp:
+        timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
+
+    if event_type == "TARGET1":
+        msg = (
+            f"🎯 <b>CRUDE MCX TARGET 1 HIT! (+{pts_move:.0f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"💰 <b>Profit Booked:</b> +₹{pnl_rs:,.0f}\n"
+            f"📍 <b>Option Value:</b> ₹{exit_premium:.2f}\n"
+            f"🛡️ <b>Action:</b> Book Partial / Trail SL to Cost!\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp}\n"
+            f"⚡ <i>Crude MCX Pro Terminal</i>"
+        )
+    elif event_type == "TARGET2":
+        msg = (
+            f"🚀 <b>CRUDE MCX TARGET 2 (RUNNER) HIT! (+{pts_move:.0f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"💰 <b>Total Profit:</b> +₹{pnl_rs:,.0f}\n"
+            f"📍 <b>Final Option Value:</b> ₹{exit_premium:.2f}\n"
+            f"🏁 <b>Action:</b> Full Target Met. Trade Closed!\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp}\n"
+            f"⚡ <i>Crude MCX Pro Terminal</i>"
+        )
+    else:  # STOP_LOSS
+        msg = (
+            f"🛑 <b>CRUDE MCX STOP LOSS HIT (-{abs(pts_move):.0f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"🛡️ <b>Max Risk Limited:</b> -₹{abs(pnl_rs):,.0f}\n"
+            f"📍 <b>Exit Value:</b> ₹{exit_premium:.2f}\n"
+            f"⏹️ <b>Action:</b> Position Closed. Capital Protected.\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp}\n"
+            f"⚡ <i>Crude MCX Pro Terminal</i>"
+        )
+
+    return send_telegram_message(msg)
+
+
 def is_market_open() -> bool:
     from config import IST_TIMEZONE, MARKET_OPEN_HOUR, MARKET_OPEN_MIN, MARKET_CLOSE_HOUR, MARKET_CLOSE_MIN
     import pytz
