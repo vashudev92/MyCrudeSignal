@@ -763,35 +763,37 @@ def main():
 
         # ── MULTI-ASSET LIVE RADAR OVERVIEW ───────────────────────────────────
         all_specs = COMMODITY_REGISTRY
-        grid_tiles = ""
+        tile_list = []
         for k_ast, sp in all_specs.items():
             ast_cfg = get_active_strategy_config(k_ast)
             p_str = f"{ltp:,.0f}" if k_ast == comm_key else (f"{sp.base_spot_estimate:,.0f}" if sp.tick_size >= 1.0 else f"{sp.base_spot_estimate:.1f}")
             is_sel = (k_ast == comm_key)
             bg_c = "#EFF6FF" if is_sel else "#FFFFFF"
-            bd_c = "#3B82F6" if is_sel else "#E2E8F0"
+            bd_c = "#3B82F6" if is_sel else "#CBD5E1"
             tg_txt = ("🟢 " + ast_cfg.strategy_model.split(" ")[1]) if ast_cfg.enabled else "⏸️ Muted"
             tg_col = "#059669" if ast_cfg.enabled else "#94A3B8"
-            grid_tiles += f"""
-            <div style="padding:4px 6px; background:{bg_c}; border:1.5px solid {bd_c}; border-radius:5px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:700;">{sp.icon} {sp.key}</span>
-                    <b>₹{p_str}</b>
-                </div>
-                <div style="font-size:0.62rem; color:{tg_col}; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    {tg_txt} ({ast_cfg.sl_pts:.0f}p)
-                </div>
-            </div>
-            """
+            tile_html = (
+                f'<div style="padding:4px 6px; background:{bg_c}; border:1.5px solid {bd_c}; border-radius:5px;">'
+                f'<div style="display:flex; justify-content:space-between; align-items:center;">'
+                f'<span style="font-weight:700;">{sp.icon} {sp.key}</span><b>₹{p_str}</b>'
+                f'</div>'
+                f'<div style="font-size:0.62rem; color:{tg_col}; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'
+                f'{tg_txt} ({ast_cfg.sl_pts:.0f}p)'
+                f'</div>'
+                f'</div>'
+            )
+            tile_list.append(tile_html)
 
-        st.markdown(f"""
-        <div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#E2E8F0;">
-            <div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MULTI-ASSET 24/7 SCANNER RADAR (MCX COMMODITIES & NSE/BSE INDICES):</div>
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; font-family:'JetBrains Mono',monospace; font-size:0.72rem;">
-                {grid_tiles}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        radar_body = "".join(tile_list)
+        full_radar_html = (
+            f'<div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#E2E8F0;">'
+            f'<div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MULTI-ASSET 24/7 SCANNER RADAR (MCX COMMODITIES & NSE/BSE INDICES):</div>'
+            f'<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; font-family:\'JetBrains Mono\',monospace; font-size:0.72rem;">'
+            f'{radar_body}'
+            f'</div>'
+            f'</div>'
+        )
+        st.markdown(full_radar_html, unsafe_allow_html=True)
 
         with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)"):
             st.caption("Enable or mute alerts for any asset. To update an asset's strategy, test in **Strategy Lab & Backtester** and click 'Apply to Asset'.")
