@@ -1,35 +1,44 @@
 """
-instrument_finder.py — Auto-discover active MCX Crude Oil futures contract key
-Uses Upstox Instrument Search API with a known-good fallback key.
+instrument_finder.py — Dynamic Multi-Commodity Instrument Discovery & Key Resolver
+Auto-discovers active futures and options contracts for MCX Crude Oil, Gold, Silver, and Natural Gas.
 """
 
 import requests
 import pandas as pd
 from datetime import datetime
 import pytz
+from typing import Dict, Optional
 
-from config import IST_TIMEZONE, CRUDE_SYMBOL_KEYWORD, INSTRUMENT_TYPE
+from config import IST_TIMEZONE
+from commodity_registry import get_commodity_spec
 
 IST = pytz.timezone(IST_TIMEZONE)
 
 INSTRUMENT_SEARCH_URL = "https://api.upstox.com/v2/instruments/search"
 
-_cached_instrument_key: str | None = None
-_cache_date: str | None = None
+_cached_instrument_keys: Dict[str, str] = {}
+_cache_dates: Dict[str, str] = {}
+
+# Known-good fallback keys (updated monthly at expiry)
+FALLBACK_KEYS = {
+    "CRUDEOIL": "MCX_FO|565899",
+    "GOLD": "MCX_FO|565801",
+    "SILVER": "MCX_FO|565850",
+    "NATURALGAS": "MCX_FO|565920",
+}
 
 
-def _search_active_crude_key(access_token: str) -> str | None:
-    """Search for the nearest-expiry MCX CRUDEOIL FUT via Upstox search API."""
+def _search_active_commodity_key(symbol_keyword: str, access_token: str) -> Optional[str]:
+    """Search for the nearest-expiry MCX FUT via Upstox search API."""
     try:
         headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
         resp = requests.get(
             INSTRUMENT_SEARCH_URL,
-            params={"query": "CRUDEOIL"},
+            params={"query": symbol_keyword},
             headers=headers,
             timeout=10,
         )
         if resp.status_code != 200:
-            print(f"[InstrumentFinder] Search returned {resp.status_code}: {resp.text[:200]}")
             return None
 
         instruments = resp.json().get("data", [])
@@ -49,7 +58,7 @@ def _search_active_crude_key(access_token: str) -> str | None:
             # Only MCX futures
             if exchange != "MCX" or itype != "FUT":
                 continue
-            if "CRUDE" not in symbol.upper() and "CRUDE" not in name.upper():
+            if symbol_keyword.upper() not in symbol.upper() and symbol_keyword.upper() not in name.upper():
                 continue
             try:
                 expiry = datetime.strptime(expiry_s, "%Y-%m-%d").date()
@@ -63,77 +72,60 @@ def _search_active_crude_key(access_token: str) -> str | None:
 
         candidates.sort(key=lambda x: x[0])
         _, key, sym = candidates[0]
-        print(f"[InstrumentFinder] Found active contract: {sym} -> {key}")
+        print(f"[InstrumentFinder] Active contract found: {sym} -> {key}")
         return key
 
     except Exception as e:
-        print(f"[InstrumentFinder] Search error: {e}")
+        print(f"[InstrumentFinder] Search error for {symbol_keyword}: {e}")
         return None
 
 
-def get_active_crude_instrument_key(access_token: str | None = None) -> str:
+def get_active_crude_instrument_key(access_token: Optional[str] = None, commodity_key: str = "CRUDEOIL") -> str:
     """
-    Returns the instrument key for the nearest-expiry MCX CRUDEOIL futures contract.
+    Returns the instrument key for the nearest-expiry MCX futures contract for any commodity.
     Caches the result per trading day.
-
-    Strategy:
-      1. Return today's cached key (fastest)
-      2. Try Upstox search API (most accurate)
-      3. Return previously cached key even if from yesterday
-      4. Use hardcoded known key as last resort (updated monthly at expiry)
-
-    Args:
-        access_token: Upstox access token
-
-    Returns:
-        Instrument key string, e.g. "MCX_FO|565899"
     """
-    global _cached_instrument_key, _cache_date
+    global _cached_instrument_keys, _cache_dates
 
+    spec = get_commodity_spec(commodity_key)
+    c_key = spec.key
     today = datetime.now(IST).strftime("%Y-%m-%d")
 
     # 1. Return today's cached key
-    if _cached_instrument_key and _cache_date == today:
-        return _cached_instrument_key
+    if _cached_instrument_keys.get(c_key) and _cache_dates.get(c_key) == today:
+        return _cached_instrument_keys[c_key]
 
     # 2. Try search API
     if access_token:
-        key = _search_active_crude_key(access_token)
+        key = _search_active_commodity_key(spec.symbol_keyword, access_token)
         if key:
-            _cached_instrument_key = key
-            _cache_date = today
+            _cached_instrument_keys[c_key] = key
+            _cache_dates[c_key] = today
             return key
 
     # 3. Return stale cache
-    if _cached_instrument_key:
-        print("[InstrumentFinder] Using stale cached key (API unavailable).")
-        return _cached_instrument_key
+    if _cached_instrument_keys.get(c_key):
+        return _cached_instrument_keys[c_key]
 
-    # 4. Hardcoded fallback — CRUDEOIL FUT 21 SEP 26
-    #    Update this key each month after expiry from Upstox instrument list
-    fallback_key = "MCX_FO|565899"
-    print(f"[InstrumentFinder] Using hardcoded fallback key: {fallback_key}")
-    _cached_instrument_key = fallback_key
-    _cache_date = today
+    # 4. Hardcoded fallback
+    fallback_key = FALLBACK_KEYS.get(c_key, "MCX_FO|565899")
+    _cached_instrument_keys[c_key] = fallback_key
+    _cache_dates[c_key] = today
     return fallback_key
 
 
-def get_crude_options_keys(access_token: str, expiry_date: str | None = None) -> pd.DataFrame:
-    """
-    Fetch available CRUDEOIL options (CE/PE) for a given expiry.
-
-    Args:
-        access_token: Upstox access token
-        expiry_date: 'YYYY-MM-DD', defaults to nearest expiry
-
-    Returns:
-        DataFrame with [instrument_key, trading_symbol, strike, option_type, expiry]
-    """
+def get_commodity_options_keys(
+    access_token: str,
+    commodity_key: str = "CRUDEOIL",
+    expiry_date: Optional[str] = None
+) -> pd.DataFrame:
+    """Fetch available MCX options (CE/PE) for a given commodity and expiry."""
+    spec = get_commodity_spec(commodity_key)
     try:
         headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
         resp = requests.get(
             INSTRUMENT_SEARCH_URL,
-            params={"query": "CRUDEOIL"},
+            params={"query": spec.symbol_keyword},
             headers=headers,
             timeout=10,
         )
@@ -153,7 +145,7 @@ def get_crude_options_keys(access_token: str, expiry_date: str | None = None) ->
 
             if exchange != "MCX" or itype not in ("CE", "PE"):
                 continue
-            if "CRUDE" not in symbol.upper():
+            if spec.symbol_keyword not in symbol.upper():
                 continue
             try:
                 expiry = datetime.strptime(expiry_s, "%Y-%m-%d").date()
@@ -179,5 +171,10 @@ def get_crude_options_keys(access_token: str, expiry_date: str | None = None) ->
         return df
 
     except Exception as e:
-        print(f"[InstrumentFinder] Options fetch error: {e}")
+        print(f"[InstrumentFinder] Options fetch error for {spec.name}: {e}")
         return pd.DataFrame()
+
+
+# Alias for backward compatibility
+get_crude_options_keys = get_commodity_options_keys
+

@@ -22,6 +22,7 @@ import pytz
 
 from config import IST_TIMEZONE
 from indicators import IndicatorValues, PivotLevels
+from commodity_registry import get_commodity_spec
 
 IST = pytz.timezone(IST_TIMEZONE)
 
@@ -123,6 +124,7 @@ class SignalEngine:
         t2_rr: float = 3.5,
         market_regime: str = "🛡️ Strict Trend (ADX >= 23)",
         trailing_mode: str = "❌ Pure Fixed SL",
+        commodity_key: str = "CRUDEOIL",
     ) -> TradeSignal:
         price = current_price if current_price and current_price > 0 else indicators.close
         pivot = indicators.pivot
@@ -306,14 +308,16 @@ class SignalEngine:
             SignalConfidence.MEDIUM if score >= 2 else SignalConfidence.LOW
         )
 
-        atm_strike = int(round(price / 100.0) * 100)
+        spec = get_commodity_spec(commodity_key)
+        strike_step = spec.strike_step
+        atm_strike = int(round(price / strike_step) * strike_step)
         entry = round(price, 2)
+        lot_size = spec.active_lot_size
 
-        # Dynamic ATM option premium based on spot and monthly cycle
-        now_dt = datetime.now(IST)
-        day_num = now_dt.day
-        dte = max(2, 19 - day_num) if day_num <= 19 else max(2, 49 - day_num)
-        calc_atm_prem = round(max(40.0, min(350.0, 0.40 * price * 0.36 * ((dte / 365.0) ** 0.5))) * 2) / 2.0
+        # Dynamic ATM option premium based on spot and commodity baseline
+        calc_atm_prem = round(max(spec.tick_size * 10, spec.base_option_premium * (price / spec.base_spot_estimate)), 2)
+
+        contract_prefix = "GOLDM" if spec.key == "GOLD" else ("SILVERM" if spec.key == "SILVER" else spec.symbol_keyword)
 
         if signal_type == SignalType.BUY:
             sl = round(price - sl_pts, 2)
@@ -321,16 +325,16 @@ class SignalEngine:
             t2 = round(price + (sl_pts * t2_rr), 2)
 
             option_action = "🟢 BUY CALL (CE)"
-            option_contract = f"CRUDEOIL {atm_strike} CE"
+            option_contract = f"{contract_prefix} {atm_strike} CE"
             opt_buy = calc_atm_prem
-            opt_risk_pts = round(sl_pts * ATM_DELTA, 2)
-            opt_sl = max(5.0, round(opt_buy - opt_risk_pts, 2))
-            opt_t1 = round(opt_buy + (sl_pts * t1_rr * ATM_DELTA), 2)
-            opt_t2 = round(opt_buy + (sl_pts * t2_rr * ATM_DELTA), 2)
+            opt_risk_pts = round(sl_pts * spec.atm_delta, 2)
+            opt_sl = max(spec.tick_size * 5, round(opt_buy - opt_risk_pts, 2))
+            opt_t1 = round(opt_buy + (sl_pts * t1_rr * spec.atm_delta), 2)
+            opt_t2 = round(opt_buy + (sl_pts * t2_rr * spec.atm_delta), 2)
             opt_rew_pts = round(opt_t1 - opt_buy, 2)
 
             option_suggestion = f"BUY {option_contract} @ ₹{opt_buy:.1f} (1:{t1_rr:.1f} R:R | 1 Lot)"
-            reason = f"Bullish {strategy_model.split('(')[0].strip()} Trigger. Target 1 (₹{opt_t1:.0f}) & Target 2 (₹{opt_t2:.0f})."
+            reason = f"Bullish {strategy_model.split('(')[0].strip()} Trigger on {spec.name}. Target 1 (₹{opt_t1:.0f}) & Target 2 (₹{opt_t2:.0f})."
 
         elif signal_type == SignalType.SELL:
             sl = round(price + sl_pts, 2)
@@ -338,24 +342,24 @@ class SignalEngine:
             t2 = round(price - (sl_pts * t2_rr), 2)
 
             option_action = "🔴 BUY PUT (PE)"
-            option_contract = f"CRUDEOIL {atm_strike} PE"
+            option_contract = f"{contract_prefix} {atm_strike} PE"
             opt_buy = calc_atm_prem
-            opt_risk_pts = round(sl_pts * ATM_DELTA, 2)
-            opt_sl = max(5.0, round(opt_buy - opt_risk_pts, 2))
-            opt_t1 = round(opt_buy + (sl_pts * t1_rr * ATM_DELTA), 2)
-            opt_t2 = round(opt_buy + (sl_pts * t2_rr * ATM_DELTA), 2)
+            opt_risk_pts = round(sl_pts * spec.atm_delta, 2)
+            opt_sl = max(spec.tick_size * 5, round(opt_buy - opt_risk_pts, 2))
+            opt_t1 = round(opt_buy + (sl_pts * t1_rr * spec.atm_delta), 2)
+            opt_t2 = round(opt_buy + (sl_pts * t2_rr * spec.atm_delta), 2)
             opt_rew_pts = round(opt_t1 - opt_buy, 2)
 
             option_suggestion = f"BUY {option_contract} @ ₹{opt_buy:.1f} (1:{t1_rr:.1f} R:R | 1 Lot)"
-            reason = f"Bearish {strategy_model.split('(')[0].strip()} Trigger. Target 1 (₹{opt_t1:.0f}) & Target 2 (₹{opt_t2:.0f})."
+            reason = f"Bearish {strategy_model.split('(')[0].strip()} Trigger on {spec.name}. Target 1 (₹{opt_t1:.0f}) & Target 2 (₹{opt_t2:.0f})."
 
         else:
             sl = t1 = t2 = 0.0
             option_action = "WAIT"
-            option_contract = "NO ACTIVE POSITION"
+            option_contract = f"NO ACTIVE {spec.name.upper()} POSITION"
             opt_buy = opt_sl = opt_t1 = opt_t2 = opt_risk_pts = opt_rew_pts = 0.0
             option_suggestion = f"Awaiting {strategy_model.split('(')[0].strip()} trigger"
-            reason = "Price is in consolidation zone. Waiting for clear signal."
+            reason = f"{spec.name} price is in consolidation zone. Waiting for clear signal."
 
         return TradeSignal(
             signal=signal_type,
@@ -372,8 +376,8 @@ class SignalEngine:
             option_target2=opt_t2,
             option_risk_pts=opt_risk_pts,
             option_reward1_pts=opt_rew_pts,
-            option_lot_risk_rs=round(opt_risk_pts * LOT_SIZE, 2),
-            option_lot_target1_rs=round(opt_rew_pts * LOT_SIZE, 2),
+            option_lot_risk_rs=round(opt_risk_pts * lot_size, 2),
+            option_lot_target1_rs=round(opt_rew_pts * lot_size, 2),
             entry_price=entry,
             stop_loss=sl,
             target1=t1,

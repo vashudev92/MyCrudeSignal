@@ -34,6 +34,7 @@ from news_monitor import get_news_monitor
 from alert_manager import get_alert_manager, send_telegram_test_message, get_telegram_creds, send_telegram_message
 from backtester import CrudeBacktester, BacktestReport, calculate_mcx_option_charges
 from background_scanner import start_background_scanner
+from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec, calculate_commodity_option_charges
 import os
 
 IST = pytz.timezone(IST_TIMEZONE)
@@ -404,11 +405,11 @@ def style_pnl_matrix(df: pd.DataFrame) -> Any:
 # ─── Fast In-Memory Cached Data Engines ─────────────────────────────────────────
 
 @st.cache_data(ttl=8, show_spinner=False)
-def get_cached_live_market_stream(token: str) -> tuple[pd.DataFrame, dict, dict]:
+def get_cached_live_market_stream(token: str, commodity_key: str = "CRUDEOIL") -> tuple[pd.DataFrame, dict, dict]:
     client = get_client()
     if token:
         try:
-            instrument_key = get_active_crude_instrument_key(token)
+            instrument_key = get_active_crude_instrument_key(token, commodity_key=commodity_key)
             df_candles = client.get_intraday_candles(instrument_key, interval="30minute")
             if df_candles.empty or len(df_candles) < 20:
                 df_candles = client.get_historical_candles(instrument_key, interval="30minute", days_back=4)
@@ -418,7 +419,7 @@ def get_cached_live_market_stream(token: str) -> tuple[pd.DataFrame, dict, dict]
         except Exception:
             pass
 
-    df_demo, _ = get_demo_historical_dataset(days=4)
+    df_demo, _ = get_demo_historical_dataset(days=4, commodity_key=commodity_key)
     return df_demo, {}, {}
 
 
@@ -433,16 +434,18 @@ def get_cached_news_sentiment() -> tuple[str, list]:
 def get_demo_historical_dataset(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    days: int = 30
+    days: int = 30,
+    commodity_key: str = "CRUDEOIL"
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     np.random.seed(101)
+    spec = get_commodity_spec(commodity_key)
 
     end_dt = end_date if end_date else datetime.now(IST).date()
     start_dt = start_date if start_date else (end_dt - timedelta(days=days))
     pre_start_dt = start_dt - timedelta(days=8)
 
     daily_dates = pd.date_range(start=pre_start_dt, end=end_dt, freq='B')
-    base_price = 7200.0
+    base_price = spec.base_spot_estimate
     daily_rows = []
     
     current_regime = 0.8
@@ -450,13 +453,13 @@ def get_demo_historical_dataset(
         if i % 15 == 0:
             current_regime = np.random.choice([1.2, -1.1, 0.1, 1.4, -1.3])
         
-        day_drift = current_regime * np.random.uniform(20, 60)
-        base_price = max(5500.0, min(9500.0, base_price + day_drift + np.random.normal(0, 25)))
-        d_range = np.random.uniform(70, 160)
+        day_drift = current_regime * np.random.uniform(spec.default_sl_pts * 0.8, spec.default_sl_pts * 2.0)
+        base_price = max(spec.base_spot_estimate * 0.7, min(spec.base_spot_estimate * 1.3, base_price + day_drift + np.random.normal(0, spec.default_sl_pts * 0.5)))
+        d_range = np.random.uniform(spec.default_sl_pts * 2.5, spec.default_sl_pts * 5.5)
         d_high = base_price + d_range * np.random.uniform(0.4, 0.7)
         d_low = base_price - d_range * np.random.uniform(0.4, 0.7)
-        d_open = base_price + np.random.uniform(-15, 15)
-        d_close = base_price + (day_drift * 0.5) + np.random.uniform(-10, 10)
+        d_open = base_price + np.random.uniform(-spec.default_sl_pts * 0.4, spec.default_sl_pts * 0.4)
+        d_close = base_price + (day_drift * 0.5) + np.random.uniform(-spec.default_sl_pts * 0.3, spec.default_sl_pts * 0.3)
 
         daily_rows.append({
             "datetime": pd.to_datetime(d),
@@ -482,13 +485,13 @@ def get_demo_historical_dataset(
         
         for t in candle_times:
             is_us_session = (17 <= t.hour <= 22)
-            step_vol = 14.0 if is_us_session else 4.5
+            step_vol = spec.default_sl_pts * 0.45 if is_us_session else spec.default_sl_pts * 0.15
             drift = day_trend_slope * (1.8 if is_us_session else 0.4)
             
             curr_p = max(row["low"], min(row["high"], curr_p + drift + np.random.normal(0, step_vol)))
-            c_high = curr_p + np.random.uniform(2, 10 if is_us_session else 4)
-            c_low = curr_p - np.random.uniform(2, 10 if is_us_session else 4)
-            c_open = curr_p + np.random.uniform(-3, 3)
+            c_high = curr_p + np.random.uniform(spec.tick_size * 2, spec.default_sl_pts * 0.35 if is_us_session else spec.default_sl_pts * 0.15)
+            c_low = curr_p - np.random.uniform(spec.tick_size * 2, spec.default_sl_pts * 0.35 if is_us_session else spec.default_sl_pts * 0.15)
+            c_open = curr_p + np.random.uniform(-spec.default_sl_pts * 0.1, spec.default_sl_pts * 0.1)
 
             intraday_rows.append({
                 "datetime": t,
@@ -509,7 +512,8 @@ def get_cached_historical_data(
     from_date: str,
     to_date: str,
     interval: str = "30minute",
-    token: str = ""
+    token: str = "",
+    commodity_key: str = "CRUDEOIL"
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     client = get_client()
     if token:
@@ -529,7 +533,7 @@ def get_cached_historical_data(
 
     s_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
     e_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
-    return get_demo_historical_dataset(start_date=s_dt, end_date=e_dt)
+    return get_demo_historical_dataset(start_date=s_dt, end_date=e_dt, commodity_key=commodity_key)
 
 
 # ─── Instant Reactive Backtest Function ───────────────────────────────────────
@@ -547,14 +551,17 @@ def execute_reactive_backtest(
     market_regime: str,
     use_breakeven: bool,
     be_trigger_pts: float,
-    token_str: str
+    token_str: str,
+    commodity_key: str = "CRUDEOIL"
 ) -> BacktestReport:
+    instrument_key = get_active_crude_instrument_key(token_str, commodity_key=commodity_key)
     df_bt_candles, df_bt_daily = get_cached_historical_data(
-        instrument_key="MCX_FO|565899",
+        instrument_key=instrument_key,
         from_date=from_date_str,
         to_date=to_date_str,
         interval="30minute",
-        token=token_str
+        token=token_str,
+        commodity_key=commodity_key
     )
     s_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
     e_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
@@ -636,13 +643,43 @@ def main():
     status_text = "MARKET OPEN" if market_open else "MARKET CLOSED"
     now_ist_str = datetime.now(IST).strftime("%H:%M:%S IST")
 
+    # ── Active Commodity Selection Pills ──────────────────────────────────────────
+    commodity_pills = {
+        "CRUDEOIL": "🛢️ CRUDE OIL",
+        "GOLD": "🪙 GOLD MINI (GOLDM)",
+        "SILVER": "🥈 SILVER MINI (SILVERM)",
+        "NATURALGAS": "🔥 NATURAL GAS",
+    }
+
+    if "selected_comm_key" not in st.session_state:
+        st.session_state["selected_comm_key"] = "CRUDEOIL"
+
+    col_nav1, col_nav2 = st.columns([2.8, 1.2])
+    with col_nav1:
+        current_idx = list(commodity_pills.keys()).index(st.session_state["selected_comm_key"])
+        selected_pill_lbl = st.radio(
+            "Select Active Commodity",
+            list(commodity_pills.values()),
+            index=current_idx,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="commodity_header_selector"
+        )
+        for k, v in commodity_pills.items():
+            if v == selected_pill_lbl and st.session_state["selected_comm_key"] != k:
+                st.session_state["selected_comm_key"] = k
+                st.rerun()
+
+    comm_key = st.session_state["selected_comm_key"]
+    spec = get_commodity_spec(comm_key)
+
     # Clean Classic Light Navbar
     st.markdown(f"""
     <div class="mini-nav">
         <div>
-            <span class="mini-nav-title">🛢️ CRUDE MCX TERMINAL</span>
+            <span class="mini-nav-title">{spec.icon} {spec.name.upper()} TERMINAL</span>
             <span style="color:#CBD5E1; margin:0 8px;">|</span>
-            <span class="mini-nav-sub">Options Live Execution & Backtester</span>
+            <span class="mini-nav-sub">Multi-Commodity Options Live Engine & Backtester</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
             <div style="display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; background:{status_bg}; padding:2px 8px; border-radius:4px; border:1px solid {status_border};">
@@ -651,7 +688,7 @@ def main():
                 <span style="color:#94A3B8;">|</span>
                 <span style="color:#64748B;">{now_ist_str}</span>
             </div>
-            <span class="mini-badge">MCX:CRUDEOIL (ATM)</span>
+            <span class="mini-badge">MCX:{spec.symbol_keyword} ({spec.default_lot_type} ATM)</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -683,7 +720,7 @@ def main():
     # TAB 1: LIVE SIGNALS & ACTIVE POSITION LOCK-IN
     # ════════════════════════════════════════════════════════════════════════
     with tab_live:
-        df_candles, live_quote, prev_day_ohlc = get_cached_live_market_stream(token_str)
+        df_candles, live_quote, prev_day_ohlc = get_cached_live_market_stream(token_str, commodity_key=comm_key)
         news_flag, news_items = get_cached_news_sentiment()
 
         if prev_day_ohlc:
@@ -713,6 +750,27 @@ def main():
         active_trade = st.session_state.get("active_live_trade")
         active_setup_key = st.session_state.get("active_live_setup", "SETUP1")
         cur_setup = SETUPS.get(active_setup_key, SETUPS["SETUP1"])
+
+        # ── MULTI-COMMODITY LIVE RADAR OVERVIEW ────────────────────────────────
+        st.markdown(f"""
+        <div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#E2E8F0;">
+            <div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MCX MULTI-COMMODITY SCANNER RADAR:</div>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-family:'JetBrains Mono',monospace; font-size:0.73rem;">
+                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='CRUDEOIL' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='CRUDEOIL' else '#E2E8F0'}; border-radius:4px;">
+                    <span style="font-weight:700;">🛢️ CRUDE OIL:</span> <b>₹{ltp:.0f if comm_key=='CRUDEOIL' else 7240}</b>
+                </div>
+                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='GOLD' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='GOLD' else '#E2E8F0'}; border-radius:4px;">
+                    <span style="font-weight:700;">🪙 GOLD MINI:</span> <b>₹{ltp:.0f if comm_key=='GOLD' else 74200}</b>
+                </div>
+                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='SILVER' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='SILVER' else '#E2E8F0'}; border-radius:4px;">
+                    <span style="font-weight:700;">🥈 SILVER MINI:</span> <b>₹{ltp:.0f if comm_key=='SILVER' else 86500}</b>
+                </div>
+                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='NATURALGAS' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='NATURALGAS' else '#E2E8F0'}; border-radius:4px;">
+                    <span style="font-weight:700;">🔥 NAT GAS:</span> <b>₹{ltp:.1f if comm_key=='NATURALGAS' else 215.4}</b>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # ── 3 QUICK-SWITCH VERIFIED LIVE STRATEGY PRESET BUTTONS ───────────────
         st.markdown('<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ 3 VERIFIED PROFITABLE LIVE STRATEGY PRESETS</div>', unsafe_allow_html=True)
@@ -981,7 +1039,7 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
 
             with col_act3:
                 if st.button("⏹️ Exit / Square Off Position", use_container_width=True):
-                    chg = calculate_mcx_option_charges(entry_prem, est_option_prem, lots=lots)
+                    chg = calculate_commodity_option_charges(entry_prem, est_option_prem, commodity_key=comm_key, lots=lots)
                     net_pnl = round(gross_pnl - chg["total_charges"], 2)
                     outcome = "WIN" if net_pnl > 0 else ("LOSS" if net_pnl < 0 else "BREAKEVEN")
                     gross_str = f"+₹{gross_pnl:,.0f}" if gross_pnl >= 0 else f"-₹{abs(gross_pnl):,.0f}"
@@ -1007,16 +1065,18 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
 
         # ── SCENARIO B: SCANNING FOR NEW SIGNAL (CAPITAL AVAILABLE) ───────────
         else:
+            scaled_sl = round(cur_setup["sl_pts"] * (spec.default_sl_pts / 25.0), 2)
             signal = engine.generate_signal(
                 indicators=indicators,
                 strategy_model=cur_setup["model"],
                 news_flag=news_flag,
                 current_price=ltp,
-                sl_pts=cur_setup["sl_pts"],
+                sl_pts=scaled_sl,
                 t1_rr=cur_setup["t1_rr"],
                 t2_rr=cur_setup["t2_rr"],
                 market_regime=cur_setup["regime"],
-                trailing_mode=cur_setup["trailing"]
+                trailing_mode=cur_setup["trailing"],
+                commodity_key=comm_key
             )
 
             if signal.signal == SignalType.BUY:
@@ -1155,7 +1215,31 @@ SIGNAL AT: <b>{signal.timestamp}</b>
     # TAB 2: INSTANT REACTIVE STRATEGY LAB & BACKTESTER
     # ════════════════════════════════════════════════════════════════════════
     with tab_backtest:
-        st.markdown('<div class="mini-card"><div class="mini-card-header">🎛️ STRATEGY AUDIT LAB — INSTANT CONTROLS</div>', unsafe_allow_html=True)
+        st.markdown('<div class="mini-card"><div class="mini-card-header">🎛️ STRATEGY AUDIT LAB — MULTI-COMMODITY CONTROLS</div>', unsafe_allow_html=True)
+
+        comm_options_map = {
+            "🛢️ MCX Crude Oil (100 bbl)": "CRUDEOIL",
+            "🪙 MCX Gold Mini (100g)": "GOLD",
+            "🥈 MCX Silver Mini (5kg)": "SILVER",
+            "🔥 MCX Natural Gas (1250 mmBtu)": "NATURALGAS",
+        }
+
+        row0_c1, row0_c2 = st.columns([1.6, 2.4])
+        with row0_c1:
+            bt_comm_label = st.selectbox(
+                "Commodity Asset to Backtest",
+                list(comm_options_map.keys()),
+                index=list(comm_options_map.values()).index(comm_key),
+                key="bt_commodity_select"
+            )
+            bt_comm_key = comm_options_map[bt_comm_label]
+            bt_spec = get_commodity_spec(bt_comm_key)
+        with row0_c2:
+            st.markdown(f"""
+            <div style="font-family:'JetBrains Mono',monospace; font-size:0.74rem; color:#475569; padding-top:24px;">
+                <b>Lot:</b> {bt_spec.active_lot_size} {bt_spec.lot_unit} | <b>Strike Step:</b> {bt_spec.strike_step:.0f} pts | <b>Base Spot:</b> ₹{bt_spec.base_spot_estimate:,.0f} | <b>Benchmark SL:</b> {bt_spec.default_sl_pts:.0f} pts
+            </div>
+            """, unsafe_allow_html=True)
 
         default_start = (datetime.now(IST) - timedelta(days=90)).date()
         default_end = datetime.now(IST).date()
@@ -1197,7 +1281,11 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         row2_c1, row2_c2, row2_c3, row2_c4, row2_c5 = st.columns([0.9, 0.7, 1.2, 1.1, 0.9])
 
         with row2_c1:
-            sl_input = st.slider("SL (Pts)", min_value=15, max_value=35, value=25, step=1, key="bt_sl")
+            min_sl = max(1.0, float(round(bt_spec.default_sl_pts * 0.4)))
+            max_sl = float(round(bt_spec.default_sl_pts * 2.2))
+            def_sl = float(bt_spec.default_sl_pts)
+            sl_step = float(max(0.1, bt_spec.tick_size * (10 if bt_spec.key != "NATURALGAS" else 2)))
+            sl_input = st.slider(f"SL ({bt_spec.name})", min_value=min_sl, max_value=max_sl, value=def_sl, step=sl_step, key=f"bt_sl_{bt_comm_key}")
 
         with row2_c2:
             t1_rr_input = st.selectbox("Target 1 RR", [1.5, 1.8, 2.0, 2.2, 2.5, 3.0], index=3, key="bt_rr")
@@ -1213,7 +1301,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         with row2_c4:
             trail_choice = st.selectbox(
                 "Trailing SL Protection",
-                ["❌ Pure Fixed SL", "🛡️ Lock Cost @ 1:1 RR", "🛡️ Lock Cost @ +15 pts"],
+                ["❌ Pure Fixed SL", "🛡️ Lock Cost @ 1:1 RR", "🛡️ Lock Cost @ Benchmark Move"],
                 index=0,
                 key="bt_trail"
             )
@@ -1241,7 +1329,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         to_str = sel_end.strftime("%Y-%m-%d")
 
         use_be_flag = ("Lock Cost" in trail_choice)
-        be_trigger_val = 15.0 if "+15 pts" in trail_choice else float(sl_input)
+        be_trigger_val = bt_spec.default_sl_pts if "Benchmark Move" in trail_choice else float(sl_input)
 
         # ⚡ Instant Reactive Calculation via @st.cache_data
         report = execute_reactive_backtest(
@@ -1257,7 +1345,8 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             market_regime=regime_choice,
             use_breakeven=use_be_flag,
             be_trigger_pts=be_trigger_val,
-            token_str=token_str
+            token_str=token_str,
+            commodity_key=bt_comm_key
         )
 
         if report.total_trades == 0:

@@ -22,11 +22,13 @@ from indicators import calculate_pivot_points, compute_indicators
 from signal_engine import SignalEngine, SignalType
 from alert_manager import get_alert_manager, send_tp_sl_alert
 
+from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec
+
 IST = pytz.timezone(IST_TIMEZONE)
 
 _scanner_thread: threading.Thread | None = None
 _scanner_running = False
-_active_trade_tracker: dict | None = None
+_active_trade_trackers: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
@@ -40,11 +42,13 @@ def is_market_open() -> bool:
 
 
 def _scanner_loop():
-    global _scanner_running
-    print("[BackgroundScanner] 🚀 24/7 Autonomous Background Scanner Daemon Started.")
+    global _scanner_running, _active_trade_trackers
+    print("[BackgroundScanner] 🚀 Multi-Commodity 24/7 Autonomous Background Scanner Daemon Started.")
     client = get_client()
     engine = SignalEngine()
     alert_mgr = get_alert_manager()
+
+    commodities = list(COMMODITY_REGISTRY.keys())
 
     while _scanner_running:
         try:
@@ -62,133 +66,134 @@ def _scanner_loop():
                 pass
 
             if token:
-                try:
-                    instrument_key = get_active_crude_instrument_key(token)
-                    df_candles = client.get_intraday_candles(instrument_key, interval="30minute")
-                    if df_candles.empty or len(df_candles) < 20:
-                        df_candles = client.get_historical_candles(instrument_key, interval="30minute", days_back=4)
-                    
-                    live_quote = client.get_live_quote(instrument_key)
-                    prev_day_ohlc = client.get_previous_day_ohlc(instrument_key)
-
-                    if not df_candles.empty and len(df_candles) >= 20:
-                        if prev_day_ohlc:
-                            pivot = calculate_pivot_points(
-                                prev_high=prev_day_ohlc["high"],
-                                prev_low=prev_day_ohlc["low"],
-                                prev_close=prev_day_ohlc["close"],
-                                date=prev_day_ohlc.get("date", "")
-                            )
-                        else:
-                            pivot = calculate_pivot_points(
-                                prev_high=float(df_candles["high"].iloc[-30:-1].max()),
-                                prev_low=float(df_candles["low"].iloc[-30:-1].min()),
-                                prev_close=float(df_candles["close"].iloc[-2])
-                            )
-
-                        indicators = compute_indicators(df_candles, pivot)
-                        ltp = float(live_quote.get("ltp", 0.0)) if live_quote else 0.0
-                        if ltp <= 0:
-                            ltp = float(indicators.close)
-
-                        global _active_trade_tracker
+                for comm_key in commodities:
+                    spec = get_commodity_spec(comm_key)
+                    try:
+                        instrument_key = get_active_crude_instrument_key(token, commodity_key=comm_key)
+                        df_candles = client.get_intraday_candles(instrument_key, interval="30minute")
+                        if df_candles.empty or len(df_candles) < 20:
+                            df_candles = client.get_historical_candles(instrument_key, interval="30minute", days_back=4)
                         
-                        # ── A. Monitor Active Trade for Target 1, Target 2, and Stop Loss Hits ──
-                        if _active_trade_tracker is not None:
-                            tr = _active_trade_tracker
-                            dir_mul = 1.0 if tr["direction"] == "BUY" else -1.0
-                            pts_move = (ltp - tr["entry_spot"]) * dir_mul
-                            cur_prem = max(5.0, round(tr["entry_premium"] + (pts_move * 0.50), 2))
-                            gross_rs = round((cur_prem - tr["entry_premium"]) * 100 * tr["lots"], 2)
+                        live_quote = client.get_live_quote(instrument_key)
+                        prev_day_ohlc = client.get_previous_day_ohlc(instrument_key)
 
-                            # 1. Target 2 Hit (Runner Target Met)
-                            if pts_move >= tr["t2_pts"]:
-                                send_tp_sl_alert(
-                                    event_type="TARGET2",
-                                    contract_name=tr["contract"],
-                                    pts_move=pts_move,
-                                    pnl_rs=gross_rs,
-                                    exit_premium=cur_prem,
-                                    lots=tr["lots"]
+                        if not df_candles.empty and len(df_candles) >= 20:
+                            if prev_day_ohlc:
+                                pivot = calculate_pivot_points(
+                                    prev_high=prev_day_ohlc["high"],
+                                    prev_low=prev_day_ohlc["low"],
+                                    prev_close=prev_day_ohlc["close"],
+                                    date=prev_day_ohlc.get("date", "")
                                 )
-                                _active_trade_tracker = None
-
-                            # 2. Target 1 Hit (Book Profit / Lock Breakeven)
-                            elif pts_move >= tr["t1_pts"] and not tr.get("t1_alerted", False):
-                                send_tp_sl_alert(
-                                    event_type="TARGET1",
-                                    contract_name=tr["contract"],
-                                    pts_move=pts_move,
-                                    pnl_rs=gross_rs,
-                                    exit_premium=cur_prem,
-                                    lots=tr["lots"]
+                            else:
+                                pivot = calculate_pivot_points(
+                                    prev_high=float(df_candles["high"].iloc[-30:-1].max()),
+                                    prev_low=float(df_candles["low"].iloc[-30:-1].min()),
+                                    prev_close=float(df_candles["close"].iloc[-2])
                                 )
-                                tr["t1_alerted"] = True
 
-                            # 3. Stop Loss Hit
-                            elif pts_move <= -tr["sl_pts"]:
-                                send_tp_sl_alert(
-                                    event_type="STOP_LOSS",
-                                    contract_name=tr["contract"],
-                                    pts_move=pts_move,
-                                    pnl_rs=gross_rs,
-                                    exit_premium=cur_prem,
-                                    lots=tr["lots"]
+                            indicators = compute_indicators(df_candles, pivot)
+                            ltp = float(live_quote.get("ltp", 0.0)) if live_quote else 0.0
+                            if ltp <= 0:
+                                ltp = float(indicators.close)
+
+                            # ── A. Monitor Active Trade for Target 1, Target 2, and Stop Loss Hits ──
+                            if comm_key in _active_trade_trackers and _active_trade_trackers[comm_key] is not None:
+                                tr = _active_trade_trackers[comm_key]
+                                dir_mul = 1.0 if tr["direction"] == "BUY" else -1.0
+                                pts_move = (ltp - tr["entry_spot"]) * dir_mul
+                                cur_prem = max(spec.tick_size * 5, round(tr["entry_premium"] + (pts_move * spec.atm_delta), 2))
+                                gross_rs = round((cur_prem - tr["entry_premium"]) * spec.active_lot_size * tr["lots"], 2)
+
+                                # 1. Target 2 Hit (Runner Target Met)
+                                if pts_move >= tr["t2_pts"]:
+                                    send_tp_sl_alert(
+                                        event_type="TARGET2",
+                                        contract_name=tr["contract"],
+                                        pts_move=pts_move,
+                                        pnl_rs=gross_rs,
+                                        exit_premium=cur_prem,
+                                        lots=tr["lots"]
+                                    )
+                                    _active_trade_trackers[comm_key] = None
+
+                                # 2. Target 1 Hit (Book Profit / Lock Breakeven)
+                                elif pts_move >= tr["t1_pts"] and not tr.get("t1_alerted", False):
+                                    send_tp_sl_alert(
+                                        event_type="TARGET1",
+                                        contract_name=tr["contract"],
+                                        pts_move=pts_move,
+                                        pnl_rs=gross_rs,
+                                        exit_premium=cur_prem,
+                                        lots=tr["lots"]
+                                    )
+                                    tr["t1_alerted"] = True
+
+                                # 3. Stop Loss Hit
+                                elif pts_move <= -tr["sl_pts"]:
+                                    send_tp_sl_alert(
+                                        event_type="STOP_LOSS",
+                                        contract_name=tr["contract"],
+                                        pts_move=pts_move,
+                                        pnl_rs=gross_rs,
+                                        exit_premium=cur_prem,
+                                        lots=tr["lots"]
+                                    )
+                                    _active_trade_trackers[comm_key] = None
+
+                            # ── B. Scan for New Trade Entry Signal (If No Active Trade) ──
+                            else:
+                                signal = engine.generate_signal(
+                                    indicators=indicators,
+                                    strategy_model="🎯 RSI + MACD Confluence",
+                                    news_flag="NEUTRAL",
+                                    current_price=ltp,
+                                    sl_pts=spec.default_sl_pts,
+                                    t1_rr=spec.default_t1_rr,
+                                    t2_rr=spec.default_t2_rr,
+                                    market_regime="🎯 Balanced Quality (ADX >= 18)",
+                                    trailing_mode="❌ Pure Fixed SL",
+                                    commodity_key=comm_key,
                                 )
-                                _active_trade_tracker = None
 
-                        # ── B. Scan for New Trade Entry Signal (If No Active Trade) ──
-                        else:
-                            signal = engine.generate_signal(
-                                indicators=indicators,
-                                strategy_model="🎯 RSI + MACD Confluence",
-                                news_flag="NEUTRAL",
-                                current_price=ltp,
-                                sl_pts=25.0,
-                                t1_rr=2.2,
-                                t2_rr=3.5,
-                                market_regime="🎯 Balanced Quality (ADX >= 18)",
-                                trailing_mode="❌ Pure Fixed SL"
-                            )
-
-                            if signal.signal != SignalType.NEUTRAL:
-                                fired = alert_mgr.trigger(
-                                    signal_type=signal.signal.value,
-                                    confidence=signal.confidence.value,
-                                    entry=signal.entry_price,
-                                    stop_loss=signal.option_stop_loss,
-                                    target1=signal.option_target1,
-                                    target2=signal.option_target2,
-                                    strategy_name="🎯 Setup 1: RSI + MACD Confluence",
-                                    contract_name=signal.option_contract,
-                                    entry_premium=signal.option_buy_price,
-                                    sl_premium=signal.option_stop_loss,
-                                    t1_premium=signal.option_target1,
-                                    t2_premium=signal.option_target2,
-                                    risk_rs=signal.option_lot_risk_rs,
-                                    t1_profit_rs=signal.option_lot_target1_rs,
-                                    lots=1,
-                                    timestamp=signal.timestamp,
-                                )
-                                if fired:
-                                    _active_trade_tracker = {
-                                        "direction": signal.signal.value,
-                                        "contract": signal.option_contract,
-                                        "entry_spot": signal.entry_price,
-                                        "entry_premium": signal.option_buy_price,
-                                        "sl_pts": 25.0,
-                                        "t1_pts": 25.0 * 2.2,
-                                        "t2_pts": 25.0 * 3.5,
-                                        "lots": 1,
-                                        "t1_alerted": False
-                                    }
-                except Exception as e:
-                    print(f"[BackgroundScanner] Scan error: {e}")
+                                if signal.signal != SignalType.NEUTRAL:
+                                    fired = alert_mgr.trigger(
+                                        signal_type=signal.signal.value,
+                                        confidence=signal.confidence.value,
+                                        entry=signal.entry_price,
+                                        stop_loss=signal.option_stop_loss,
+                                        target1=signal.option_target1,
+                                        target2=signal.option_target2,
+                                        strategy_name=f"{spec.icon} {spec.name} Confluence",
+                                        contract_name=signal.option_contract,
+                                        entry_premium=signal.option_buy_price,
+                                        sl_premium=signal.option_stop_loss,
+                                        t1_premium=signal.option_target1,
+                                        t2_premium=signal.option_target2,
+                                        risk_rs=signal.option_lot_risk_rs,
+                                        t1_profit_rs=signal.option_lot_target1_rs,
+                                        lots=1,
+                                        timestamp=signal.timestamp,
+                                    )
+                                    if fired:
+                                        _active_trade_trackers[comm_key] = {
+                                            "direction": signal.signal.value,
+                                            "contract": signal.option_contract,
+                                            "entry_spot": signal.entry_price,
+                                            "entry_premium": signal.option_buy_price,
+                                            "sl_pts": spec.default_sl_pts,
+                                            "t1_pts": spec.default_sl_pts * spec.default_t1_rr,
+                                            "t2_pts": spec.default_sl_pts * spec.default_t2_rr,
+                                            "lots": 1,
+                                            "t1_alerted": False
+                                        }
+                    except Exception as e:
+                        print(f"[BackgroundScanner] Scan error for {comm_key}: {e}")
 
         except Exception as outer_e:
             print(f"[BackgroundScanner] Daemon error: {outer_e}")
 
-        time.sleep(15)  # Scan every 15 seconds
+        time.sleep(20)  # Scan every 20 seconds
 
 
 def start_background_scanner():
@@ -198,6 +203,7 @@ def start_background_scanner():
         if _scanner_running and _scanner_thread is not None and _scanner_thread.is_alive():
             return
         _scanner_running = True
-        _scanner_thread = threading.Thread(target=_scanner_loop, daemon=True, name="CrudeScannerDaemon")
+        _scanner_thread = threading.Thread(target=_scanner_loop, daemon=True, name="MultiCommodityScannerDaemon")
         _scanner_thread.start()
-        print("[BackgroundScanner] Thread launched successfully.")
+        print("[BackgroundScanner] Multi-Commodity thread launched successfully.")
+

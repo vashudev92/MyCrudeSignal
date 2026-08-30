@@ -141,11 +141,26 @@ def _format_telegram_message(
     emoji = "🟢" if is_buy else "🔴"
     action_header = "BUY CALL (CE)" if is_buy else "BUY PUT (PE)"
 
+    # Dynamic commodity branding
+    c_upper = contract_name.upper()
+    if "GOLD" in c_upper:
+        comm_icon = "🪙"
+        comm_title = "GOLD MCX"
+    elif "SILVER" in c_upper:
+        comm_icon = "🥈"
+        comm_title = "SILVER MCX"
+    elif "NAT" in c_upper or "GAS" in c_upper:
+        comm_icon = "🔥"
+        comm_title = "NATGAS MCX"
+    else:
+        comm_icon = "🛢️"
+        comm_title = "CRUDE MCX"
+
     return (
-        f"{emoji} <b>CRUDE MCX ALERT: {action_header}</b>\n"
+        f"{emoji} <b>{comm_title} ALERT: {action_header}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📌 <b>Strategy:</b> {strategy_name}\n"
-        f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+        f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📍 <b>Option Entry:</b> ₹{entry_premium:.2f} (Spot: ₹{entry:.0f})\n"
         f"🛑 <b>Stop Loss:</b>     ₹{sl_premium:.2f} (Risk: -₹{risk_rs:,.0f})\n"
@@ -153,7 +168,7 @@ def _format_telegram_message(
         f"🚀 <b>Target 2:</b>       ₹{t2_premium:.2f} (Runner Target)\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"⏰ <b>Time:</b> {timestamp} | <b>Confidence:</b> {confidence}\n"
-        f"⚡ <i>Direct from Crude MCX Terminal</i>"
+        f"⚡ <i>Direct from Multi-Commodity Pro Terminal</i>"
     )
 
 
@@ -174,41 +189,55 @@ def send_tp_sl_alert(
     if not timestamp:
         timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
 
+    c_upper = contract_name.upper()
+    if "GOLD" in c_upper:
+        comm_icon = "🪙"
+        comm_title = "GOLD MCX"
+    elif "SILVER" in c_upper:
+        comm_icon = "🥈"
+        comm_title = "SILVER MCX"
+    elif "NAT" in c_upper or "GAS" in c_upper:
+        comm_icon = "🔥"
+        comm_title = "NATGAS MCX"
+    else:
+        comm_icon = "🛢️"
+        comm_title = "CRUDE MCX"
+
     if event_type == "TARGET1":
         msg = (
-            f"🎯 <b>CRUDE MCX TARGET 1 HIT! (+{pts_move:.0f} PTS)</b>\n"
+            f"🎯 <b>{comm_title} TARGET 1 HIT! (+{pts_move:.0f} PTS)</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
             f"💰 <b>Profit Booked:</b> +₹{pnl_rs:,.0f}\n"
             f"📍 <b>Option Value:</b> ₹{exit_premium:.2f}\n"
             f"🛡️ <b>Action:</b> Book Partial / Trail SL to Cost!\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Crude MCX Pro Terminal</i>"
+            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
         )
     elif event_type == "TARGET2":
         msg = (
-            f"🚀 <b>CRUDE MCX TARGET 2 (RUNNER) HIT! (+{pts_move:.0f} PTS)</b>\n"
+            f"🚀 <b>{comm_title} TARGET 2 (RUNNER) HIT! (+{pts_move:.0f} PTS)</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
             f"💰 <b>Total Profit:</b> +₹{pnl_rs:,.0f}\n"
             f"📍 <b>Final Option Value:</b> ₹{exit_premium:.2f}\n"
             f"🏁 <b>Action:</b> Full Target Met. Trade Closed!\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Crude MCX Pro Terminal</i>"
+            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
         )
     else:  # STOP_LOSS
         msg = (
-            f"🛑 <b>CRUDE MCX STOP LOSS HIT (-{abs(pts_move):.0f} PTS)</b>\n"
+            f"🛑 <b>{comm_title} STOP LOSS HIT (-{abs(pts_move):.0f} PTS)</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🛢️ <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
             f"🛡️ <b>Max Risk Limited:</b> -₹{abs(pnl_rs):,.0f}\n"
             f"📍 <b>Exit Value:</b> ₹{exit_premium:.2f}\n"
             f"⏹️ <b>Action:</b> Position Closed. Capital Protected.\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Crude MCX Pro Terminal</i>"
+            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
         )
 
     return send_telegram_message(msg)

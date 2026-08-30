@@ -28,36 +28,15 @@ from config import (
     RSI_PERIOD, IST_TIMEZONE
 )
 from indicators import calculate_pivot_points, PivotLevels, _supertrend
+from commodity_registry import get_commodity_spec, calculate_commodity_option_charges
 
 LOT_SIZE = 100
 ATM_DELTA = 0.50
 BASE_ATM_PREMIUM = 160.0
 
 
-def calculate_mcx_option_charges(buy_premium: float, exit_premium: float, lots: int = 1) -> Dict[str, float]:
-    qty = LOT_SIZE * lots
-    buy_turnover = buy_premium * qty
-    sell_turnover = exit_premium * qty
-    total_turnover = buy_turnover + sell_turnover
-
-    brokerage = 40.0
-    ctt = sell_turnover * 0.00125
-    exchange_fee = total_turnover * 0.0005
-    sebi_fee = total_turnover * 0.000001
-    gst = (brokerage + exchange_fee + sebi_fee) * 0.18
-    stamp_duty = buy_turnover * 0.00003
-
-    total_charges = round(brokerage + ctt + exchange_fee + sebi_fee + gst + stamp_duty, 2)
-
-    return {
-        "brokerage": round(brokerage, 2),
-        "ctt": round(ctt, 2),
-        "exchange_fee": round(exchange_fee, 2),
-        "gst": round(gst, 2),
-        "sebi_fee": round(sebi_fee, 2),
-        "stamp_duty": round(stamp_duty, 2),
-        "total_charges": total_charges,
-    }
+def calculate_mcx_option_charges(buy_premium: float, exit_premium: float, commodity_key: str = "CRUDEOIL", lots: int = 1) -> Dict[str, float]:
+    return calculate_commodity_option_charges(buy_premium, exit_premium, commodity_key=commodity_key, lots=lots)
 
 
 @dataclass
@@ -141,10 +120,17 @@ class BacktestReport:
 class CrudeBacktester:
     """
     Modular Option Buying Backtester with User-Selected Strategies
-    and Custom Risk-Reward Parameters.
+    and Custom Risk-Reward Parameters for Multi-Commodity Assets.
     """
 
-    def __init__(self, df_candles: pd.DataFrame, df_daily: Optional[pd.DataFrame] = None):
+    def __init__(
+        self,
+        df_candles: pd.DataFrame,
+        df_daily: Optional[pd.DataFrame] = None,
+        commodity_key: str = "CRUDEOIL"
+    ):
+        self.commodity_key = commodity_key
+        self.spec = get_commodity_spec(commodity_key)
         self.df_candles = df_candles.copy().sort_values("datetime").reset_index(drop=True)
         self.df_daily = df_daily.copy().sort_values("datetime").reset_index(drop=True) if df_daily is not None else None
 
@@ -400,12 +386,13 @@ class CrudeBacktester:
                     if closed:
                         pts = (active_trade.exit_price - active_trade.entry_price) if active_trade.direction == "BUY" else (active_trade.entry_price - active_trade.exit_price)
                         active_trade.pts_pnl = round(pts, 2)
-                        active_trade.option_pnl_pts = round(pts * ATM_DELTA, 2)
-                        active_trade.gross_option_pnl_rs = round(active_trade.option_pnl_pts * LOT_SIZE * lots, 2)
-                        active_trade.futures_pnl_rs = round(pts * LOT_SIZE * lots, 2)
-                        active_trade.option_exit_price = max(5.0, round(active_trade.option_buy_price + active_trade.option_pnl_pts, 2))
+                        active_trade.option_pnl_pts = round(pts * self.spec.atm_delta, 2)
+                        lot_size = self.spec.active_lot_size
+                        active_trade.gross_option_pnl_rs = round(active_trade.option_pnl_pts * lot_size * lots, 2)
+                        active_trade.futures_pnl_rs = round(pts * lot_size * lots, 2)
+                        active_trade.option_exit_price = max(self.spec.tick_size * 5, round(active_trade.option_buy_price + active_trade.option_pnl_pts, 2))
 
-                        chg = calculate_mcx_option_charges(active_trade.option_buy_price, active_trade.option_exit_price, lots=lots)
+                        chg = calculate_commodity_option_charges(active_trade.option_buy_price, active_trade.option_exit_price, commodity_key=self.commodity_key, lots=lots)
                         active_trade.total_charges_rs = chg["total_charges"]
                         active_trade.net_option_pnl_rs = round(active_trade.gross_option_pnl_rs - active_trade.total_charges_rs, 2)
 
@@ -495,21 +482,21 @@ class CrudeBacktester:
                     elif float(row["macd_hist"]) < 0 and (30.0 <= float(row["rsi"]) <= 50.0) and price < ema20 and price < open_p:
                         trigger_sell = True
 
+                strike_step = self.spec.strike_step
+                contract_prefix = "GOLDM" if self.spec.key == "GOLD" else ("SILVERM" if self.spec.key == "SILVER" else self.spec.symbol_keyword)
+                calc_opt_prem = round(max(self.spec.tick_size * 10, self.spec.base_option_premium * (price / self.spec.base_spot_estimate)), 2)
+
                 if trigger_buy:
                     trade_counter += 1
-                    atm_strike = int(round(price / 100.0) * 100)
+                    atm_strike = int(round(price / strike_step) * strike_step)
                     sl = round(price - sl_pts, 2)
                     t1 = round(price + (sl_pts * t1_rr), 2)
                     t2 = round(price + (sl_pts * t2_rr), 2)
 
-                    # Dynamic realistic ATM option premium based on spot and monthly cycle
-                    day_num = current_time.day if isinstance(current_time, datetime) else 15
-                    dte = max(2, 19 - day_num) if day_num <= 19 else max(2, 49 - day_num)
-                    opt_buy = round(max(40.0, min(350.0, 0.40 * price * 0.36 * ((dte / 365.0) ** 0.5))) * 2) / 2.0
-
-                    opt_sl = max(5.0, round(opt_buy - (sl_pts * ATM_DELTA), 2))
-                    opt_t1 = round(opt_buy + (sl_pts * t1_rr * ATM_DELTA), 2)
-                    opt_t2 = round(opt_buy + (sl_pts * t2_rr * ATM_DELTA), 2)
+                    opt_buy = calc_opt_prem
+                    opt_sl = max(self.spec.tick_size * 5, round(opt_buy - (sl_pts * self.spec.atm_delta), 2))
+                    opt_t1 = round(opt_buy + (sl_pts * t1_rr * self.spec.atm_delta), 2)
+                    opt_t2 = round(opt_buy + (sl_pts * t2_rr * self.spec.atm_delta), 2)
 
                     active_trade = BacktestTrade(
                         trade_id=trade_counter,
@@ -520,7 +507,7 @@ class CrudeBacktester:
                         option_action="🟢 BUY CALL (CE)",
                         strike=atm_strike,
                         option_type="CE",
-                        option_contract=f"CRUDEOIL {atm_strike} CE",
+                        option_contract=f"{contract_prefix} {atm_strike} CE",
                         option_buy_price=opt_buy,
                         option_exit_price=opt_buy,
                         option_sl_premium=opt_sl,
@@ -545,19 +532,15 @@ class CrudeBacktester:
 
                 elif trigger_sell:
                     trade_counter += 1
-                    atm_strike = int(round(price / 100.0) * 100)
+                    atm_strike = int(round(price / strike_step) * strike_step)
                     sl = round(price + sl_pts, 2)
                     t1 = round(price - (sl_pts * t1_rr), 2)
                     t2 = round(price - (sl_pts * t2_rr), 2)
 
-                    # Dynamic realistic ATM option premium based on spot and monthly cycle
-                    day_num = current_time.day if isinstance(current_time, datetime) else 15
-                    dte = max(2, 19 - day_num) if day_num <= 19 else max(2, 49 - day_num)
-                    opt_buy = round(max(40.0, min(350.0, 0.40 * price * 0.36 * ((dte / 365.0) ** 0.5))) * 2) / 2.0
-
-                    opt_sl = max(5.0, round(opt_buy - (sl_pts * ATM_DELTA), 2))
-                    opt_t1 = round(opt_buy + (sl_pts * t1_rr * ATM_DELTA), 2)
-                    opt_t2 = round(opt_buy + (sl_pts * t2_rr * ATM_DELTA), 2)
+                    opt_buy = calc_opt_prem
+                    opt_sl = max(self.spec.tick_size * 5, round(opt_buy - (sl_pts * self.spec.atm_delta), 2))
+                    opt_t1 = round(opt_buy + (sl_pts * t1_rr * self.spec.atm_delta), 2)
+                    opt_t2 = round(opt_buy + (sl_pts * t2_rr * self.spec.atm_delta), 2)
 
                     active_trade = BacktestTrade(
                         trade_id=trade_counter,
@@ -568,7 +551,7 @@ class CrudeBacktester:
                         option_action="🔴 BUY PUT (PE)",
                         strike=atm_strike,
                         option_type="PE",
-                        option_contract=f"CRUDEOIL {atm_strike} PE",
+                        option_contract=f"{contract_prefix} {atm_strike} PE",
                         option_buy_price=opt_buy,
                         option_exit_price=opt_buy,
                         option_sl_premium=opt_sl,
@@ -599,12 +582,13 @@ class CrudeBacktester:
             active_trade.exit_reason = "⏰ SESSION CLOSE"
             active_trade.status = "WIN" if pts > 0 else ("LOSS" if pts < 0 else "SCRATCH")
             active_trade.pts_pnl = round(pts, 2)
-            active_trade.option_pnl_pts = round(pts * ATM_DELTA, 2)
-            active_trade.gross_option_pnl_rs = round(active_trade.option_pnl_pts * LOT_SIZE * lots, 2)
-            active_trade.futures_pnl_rs = round(pts * LOT_SIZE * lots, 2)
-            active_trade.option_exit_price = max(5.0, round(active_trade.option_buy_price + active_trade.option_pnl_pts, 2))
+            active_trade.option_pnl_pts = round(pts * self.spec.atm_delta, 2)
+            lot_size = self.spec.active_lot_size
+            active_trade.gross_option_pnl_rs = round(active_trade.option_pnl_pts * lot_size * lots, 2)
+            active_trade.futures_pnl_rs = round(pts * lot_size * lots, 2)
+            active_trade.option_exit_price = max(self.spec.tick_size * 5, round(active_trade.option_buy_price + active_trade.option_pnl_pts, 2))
 
-            chg = calculate_mcx_option_charges(active_trade.option_buy_price, active_trade.option_exit_price, lots=lots)
+            chg = calculate_commodity_option_charges(active_trade.option_buy_price, active_trade.option_exit_price, commodity_key=self.commodity_key, lots=lots)
             active_trade.total_charges_rs = chg["total_charges"]
             active_trade.net_option_pnl_rs = round(active_trade.gross_option_pnl_rs - active_trade.total_charges_rs, 2)
             trades.append(active_trade)
