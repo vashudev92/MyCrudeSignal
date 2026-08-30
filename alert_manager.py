@@ -139,6 +139,18 @@ def _format_telegram_message(
     )
 
 
+def is_market_open() -> bool:
+    from config import IST_TIMEZONE, MARKET_OPEN_HOUR, MARKET_OPEN_MIN, MARKET_CLOSE_HOUR, MARKET_CLOSE_MIN
+    import pytz
+    IST = pytz.timezone(IST_TIMEZONE)
+    now = datetime.now(IST)
+    if now.weekday() in (5, 6):  # Saturday (5) / Sunday (6)
+        return False
+    open_time = now.replace(hour=MARKET_OPEN_HOUR, minute=MARKET_OPEN_MIN, second=0)
+    close_time = now.replace(hour=MARKET_CLOSE_HOUR, minute=MARKET_CLOSE_MIN, second=0)
+    return open_time <= now <= close_time
+
+
 # ─── Alert Manager ────────────────────────────────────────────────────────────
 
 class AlertManager:
@@ -183,6 +195,11 @@ class AlertManager:
         Fire an alert for a new signal automatically. Returns True if alert was sent, False if throttled.
         """
         if signal_type == "NEUTRAL":
+            return False
+
+        # ⛔ STRICT MARKET HOURS GUARD: Never alert on weekends or outside market hours
+        if not force and not is_market_open():
+            print(f"[AlertManager] ⏸️ Market Closed (Weekend/Night). Suppressed {signal_type} alert.")
             return False
 
         sig_key = f"{strategy_name}_{signal_type}_{contract_name}"

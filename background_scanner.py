@@ -47,7 +47,11 @@ def _scanner_loop():
 
     while _scanner_running:
         try:
-            # Check market hours
+            # ⛔ STRICT MARKET HOURS GUARD: Do NOT scan on weekends or outside MCX trading hours
+            if not is_market_open():
+                time.sleep(60)
+                continue
+
             token = UPSTOX_ACCESS_TOKEN
             try:
                 import streamlit as st

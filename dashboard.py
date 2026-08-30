@@ -1047,25 +1047,26 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
                 tot_t1_rs = signal.option_lot_target1_rs * live_lots
                 tot_t2_rs = (signal.option_target2 - signal.option_buy_price) * 100 * live_lots
 
-                # 🔔 100% AUTOMATIC SIGNAL DISPATCH: Sends Telegram alert to mobile immediately
-                alert_mgr.trigger(
-                    signal_type=signal.signal.value,
-                    confidence=signal.confidence.value,
-                    entry=signal.entry_price,
-                    stop_loss=signal.option_stop_loss,
-                    target1=signal.option_target1,
-                    target2=signal.option_target2,
-                    strategy_name=cur_setup["title"],
-                    contract_name=signal.option_contract,
-                    entry_premium=signal.option_buy_price,
-                    sl_premium=signal.option_stop_loss,
-                    t1_premium=signal.option_target1,
-                    t2_premium=signal.option_target2,
-                    risk_rs=tot_risk_rs,
-                    t1_profit_rs=tot_t1_rs,
-                    lots=live_lots,
-                    timestamp=signal.timestamp,
-                )
+                # 🔔 100% AUTOMATIC SIGNAL DISPATCH: Sends Telegram alert to mobile immediately during live market hours
+                if market_open:
+                    alert_mgr.trigger(
+                        signal_type=signal.signal.value,
+                        confidence=signal.confidence.value,
+                        entry=signal.entry_price,
+                        stop_loss=signal.option_stop_loss,
+                        target1=signal.option_target1,
+                        target2=signal.option_target2,
+                        strategy_name=cur_setup["title"],
+                        contract_name=signal.option_contract,
+                        entry_premium=signal.option_buy_price,
+                        sl_premium=signal.option_stop_loss,
+                        t1_premium=signal.option_target1,
+                        t2_premium=signal.option_target2,
+                        risk_rs=tot_risk_rs,
+                        t1_profit_rs=tot_t1_rs,
+                        lots=live_lots,
+                        timestamp=signal.timestamp,
+                    )
 
                 grid_html = f"""<div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px;">
 <div class="mini-tile" style="border-top: 2.5px solid #0284C7;">
