@@ -811,6 +811,38 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
+        with st.expander("🎛️ Manage Multi-Commodity 24/7 Live Telegram Alert States"):
+            st.caption("Enable or mute alerts for any commodity. To update an asset's strategy, test in **Strategy Lab & Backtester** and click 'Apply to Asset'.")
+            col_tg_m1, col_tg_m2, col_tg_m3, col_tg_m4 = st.columns(4)
+            with col_tg_m1:
+                st.markdown(f"**🛢️ Crude Oil**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_crude.title}<br>SL: {cfg_crude.sl_pts:.0f}p | 1:{cfg_crude.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                tg_cr = st.toggle("Live Alerts", value=cfg_crude.enabled, key="mgr_tg_crude")
+                if tg_cr != cfg_crude.enabled:
+                    cfg_crude.enabled = tg_cr
+                    save_active_strategy_config(cfg_crude)
+                    st.rerun()
+            with col_tg_m2:
+                st.markdown(f"**🪙 Gold Mini**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_gold.title}<br>SL: {cfg_gold.sl_pts:.0f}p | 1:{cfg_gold.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                tg_gd = st.toggle("Live Alerts", value=cfg_gold.enabled, key="mgr_tg_gold")
+                if tg_gd != cfg_gold.enabled:
+                    cfg_gold.enabled = tg_gd
+                    save_active_strategy_config(cfg_gold)
+                    st.rerun()
+            with col_tg_m3:
+                st.markdown(f"**🥈 Silver Mini**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_silver.title}<br>SL: {cfg_silver.sl_pts:.0f}p | 1:{cfg_silver.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                tg_sv = st.toggle("Live Alerts", value=cfg_silver.enabled, key="mgr_tg_silver")
+                if tg_sv != cfg_silver.enabled:
+                    cfg_silver.enabled = tg_sv
+                    save_active_strategy_config(cfg_silver)
+                    st.rerun()
+            with col_tg_m4:
+                st.markdown(f"**🔥 Natural Gas**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_natgas.title}<br>SL: {cfg_natgas.sl_pts:.1f}p | 1:{cfg_natgas.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                tg_ng = st.toggle("Live Alerts", value=cfg_natgas.enabled, key="mgr_tg_natgas")
+                if tg_ng != cfg_natgas.enabled:
+                    cfg_natgas.enabled = tg_ng
+                    save_active_strategy_config(cfg_natgas)
+                    st.rerun()
+
         # ── 3 QUICK-SWITCH VERIFIED LIVE STRATEGY PRESET BUTTONS ───────────────
         comm_presets = get_commodity_presets(comm_key)
         active_cfg = get_active_strategy_config(comm_key)
