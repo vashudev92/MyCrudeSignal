@@ -33,6 +33,7 @@ from signal_engine import SignalEngine, SignalType, SignalConfidence
 from news_monitor import get_news_monitor
 from alert_manager import get_alert_manager, send_telegram_test_message, get_telegram_creds, send_telegram_message
 from backtester import CrudeBacktester, BacktestReport, calculate_mcx_option_charges
+from background_scanner import start_background_scanner
 import os
 
 IST = pytz.timezone(IST_TIMEZONE)
@@ -625,6 +626,9 @@ def main():
                         st.error("Incorrect PIN. Access denied.")
             st.stop()
 
+    # ── Launch 24/7 Autonomous Background Scanner Daemon ──────────────────────
+    start_background_scanner()
+
     market_open = is_market_open()
     status_bg = "#ECFDF5" if market_open else "#FFF1F2"
     status_color = "#059669" if market_open else "#DC2626"
@@ -1043,6 +1047,26 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
                 tot_t1_rs = signal.option_lot_target1_rs * live_lots
                 tot_t2_rs = (signal.option_target2 - signal.option_buy_price) * 100 * live_lots
 
+                # 🔔 100% AUTOMATIC SIGNAL DISPATCH: Sends Telegram alert to mobile immediately
+                alert_mgr.trigger(
+                    signal_type=signal.signal.value,
+                    confidence=signal.confidence.value,
+                    entry=signal.entry_price,
+                    stop_loss=signal.option_stop_loss,
+                    target1=signal.option_target1,
+                    target2=signal.option_target2,
+                    strategy_name=cur_setup["title"],
+                    contract_name=signal.option_contract,
+                    entry_premium=signal.option_buy_price,
+                    sl_premium=signal.option_stop_loss,
+                    t1_premium=signal.option_target1,
+                    t2_premium=signal.option_target2,
+                    risk_rs=tot_risk_rs,
+                    t1_profit_rs=tot_t1_rs,
+                    lots=live_lots,
+                    timestamp=signal.timestamp,
+                )
+
                 grid_html = f"""<div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px;">
 <div class="mini-tile" style="border-top: 2.5px solid #0284C7;">
 <div class="mini-tile-lbl">ENTRY PREMIUM</div>
@@ -1091,8 +1115,8 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             st.markdown(scan_html, unsafe_allow_html=True)
 
             if signal.signal != SignalType.NEUTRAL:
-                btn_txt = f"⚡ TAKE THIS TRADE & ENGAGE CAPITAL ({signal.option_contract} - {live_lots} Lot)"
-                if st.button(btn_txt, use_container_width=True, type="primary"):
+                btn_txt = f"📊 Lock in Dashboard Deck ({signal.option_contract} - {live_lots} Lot)"
+                if st.button(btn_txt, use_container_width=True, type="secondary"):
                     st.session_state["active_live_trade"] = {
                         "direction": signal.signal.value,
                         "contract": signal.option_contract,
@@ -1109,25 +1133,6 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                         "entry_time": datetime.now(IST).strftime("%H:%M:%S"),
                         "be_active": False
                     }
-                    if enable_audio:
-                        alert_mgr.trigger(
-                            signal_type=signal.signal.value,
-                            confidence=signal.confidence.value,
-                            entry=signal.entry_price,
-                            stop_loss=signal.stop_loss,
-                            target1=signal.target1,
-                            target2=signal.target2,
-                            strategy_name=cur_setup["title"],
-                            contract_name=signal.option_contract,
-                            entry_premium=signal.option_buy_price,
-                            sl_premium=signal.option_stop_loss,
-                            t1_premium=signal.option_target1,
-                            t2_premium=signal.option_target2,
-                            risk_rs=signal.option_lot_risk_rs * live_lots,
-                            t1_profit_rs=signal.option_lot_target1_rs * live_lots,
-                            lots=live_lots,
-                            timestamp=signal.timestamp,
-                        )
                     st.rerun()
 
         # ── TODAY'S LIVE EXECUTED TRADE HISTORY LEDGER ─────────────────────────

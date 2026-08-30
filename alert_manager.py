@@ -149,11 +149,15 @@ class AlertManager:
 
     def __init__(self):
         self._last_alert_time: float = 0.0
-        self._last_signal: Optional[str] = None
+        self._last_signal_signature: Optional[str] = None
         self._lock = threading.Lock()
 
-    def _is_cooldown_active(self) -> bool:
-        return (time.time() - self._last_alert_time) < ALERT_COOLDOWN_SECONDS
+    def _is_cooldown_active(self, sig: str) -> bool:
+        # If signal signature changed (e.g. new contract or new direction), allow immediately
+        if sig != self._last_signal_signature:
+            return False
+        # If exact same signal signature, respect 10-minute cooldown
+        return (time.time() - self._last_alert_time) < 600
 
     def trigger(
         self,
@@ -174,18 +178,20 @@ class AlertManager:
         lots: int = 1,
         timestamp: str = "",
         force: bool = False,
-    ):
+    ) -> bool:
         """
-        Fire an alert for a new signal.
+        Fire an alert for a new signal automatically. Returns True if alert was sent, False if throttled.
         """
         if signal_type == "NEUTRAL":
-            return
+            return False
+
+        sig_key = f"{strategy_name}_{signal_type}_{contract_name}"
 
         with self._lock:
-            if not force and self._is_cooldown_active() and self._last_signal == signal_type:
-                return
+            if not force and self._is_cooldown_active(sig_key):
+                return False
             self._last_alert_time = time.time()
-            self._last_signal = signal_type
+            self._last_signal_signature = sig_key
 
         if not timestamp:
             timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
@@ -217,7 +223,8 @@ class AlertManager:
             )
             threading.Thread(target=send_telegram_message, args=(msg,), daemon=True).start()
 
-        print(f"[AlertManager] {signal_type} alert fired at {timestamp}")
+        print(f"[AlertManager] 🚀 AUTO-FIRED {signal_type} alert to Telegram at {timestamp} for {contract_name}")
+        return True
 
     def test_alert(self):
         """Play a test sound to verify audio is working."""
