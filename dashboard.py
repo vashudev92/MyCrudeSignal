@@ -35,6 +35,12 @@ from alert_manager import get_alert_manager, send_telegram_test_message, get_tel
 from backtester import CrudeBacktester, BacktestReport, calculate_mcx_option_charges
 from background_scanner import start_background_scanner
 from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec, calculate_commodity_option_charges
+from strategy_presets import (
+    get_active_strategy_config,
+    save_active_strategy_config,
+    get_commodity_presets,
+    CommodityStrategyConfig
+)
 import os
 
 IST = pytz.timezone(IST_TIMEZONE)
@@ -777,25 +783,73 @@ def main():
         """, unsafe_allow_html=True)
 
         # ── 3 QUICK-SWITCH VERIFIED LIVE STRATEGY PRESET BUTTONS ───────────────
-        st.markdown('<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ 3 VERIFIED PROFITABLE LIVE STRATEGY PRESETS</div>', unsafe_allow_html=True)
+        comm_presets = get_commodity_presets(comm_key)
+        active_cfg = get_active_strategy_config(comm_key)
+
+        st.markdown(f'<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ 3 VERIFIED PROFITABLE LIVE PRESETS FOR {spec.name.upper()}</div>', unsafe_allow_html=True)
         col_s1, col_s2, col_s3 = st.columns(3)
 
         with col_s1:
-            btn_s1_style = "primary" if active_setup_key == "SETUP1" else "secondary"
-            if st.button("🎯 Setup 1: RSI + MACD\n(+47.1% Net ROI | 1:2.2 RR)", type=btn_s1_style, use_container_width=True):
-                st.session_state["active_live_setup"] = "SETUP1"
+            p1 = comm_presets["SETUP1"]
+            btn_s1_style = "primary" if (active_cfg.strategy_model == p1["model"] and active_cfg.sl_pts == p1["sl_pts"]) else "secondary"
+            if st.button(f"{p1['title']}\n({p1['badge']})", type=btn_s1_style, use_container_width=True, key=f"btn_p1_{comm_key}"):
+                new_cfg = CommodityStrategyConfig(
+                    commodity_key=comm_key,
+                    enabled=True,
+                    title=p1["title"],
+                    strategy_model=p1["model"],
+                    session_filter=p1["session"],
+                    sl_pts=float(p1["sl_pts"]),
+                    t1_rr=float(p1["t1_rr"]),
+                    t2_rr=float(p1["t2_rr"]),
+                    market_regime=p1["regime"],
+                    trailing_mode=p1["trailing"],
+                    max_daily_trades=int(p1["max_trades"]),
+                    lots=1
+                )
+                save_active_strategy_config(new_cfg)
                 st.rerun()
 
         with col_s2:
-            btn_s2_style = "primary" if active_setup_key == "SETUP2" else "secondary"
-            if st.button("📰 Setup 2: News Breakout\n(+47.7% Net ROI | 1:2.5 RR)", type=btn_s2_style, use_container_width=True):
-                st.session_state["active_live_setup"] = "SETUP2"
+            p2 = comm_presets["SETUP2"]
+            btn_s2_style = "primary" if (active_cfg.strategy_model == p2["model"] and active_cfg.sl_pts == p2["sl_pts"]) else "secondary"
+            if st.button(f"{p2['title']}\n({p2['badge']})", type=btn_s2_style, use_container_width=True, key=f"btn_p2_{comm_key}"):
+                new_cfg = CommodityStrategyConfig(
+                    commodity_key=comm_key,
+                    enabled=True,
+                    title=p2["title"],
+                    strategy_model=p2["model"],
+                    session_filter=p2["session"],
+                    sl_pts=float(p2["sl_pts"]),
+                    t1_rr=float(p2["t1_rr"]),
+                    t2_rr=float(p2["t2_rr"]),
+                    market_regime=p2["regime"],
+                    trailing_mode=p2["trailing"],
+                    max_daily_trades=int(p2["max_trades"]),
+                    lots=1
+                )
+                save_active_strategy_config(new_cfg)
                 st.rerun()
 
         with col_s3:
-            btn_s3_style = "primary" if active_setup_key == "SETUP3" else "secondary"
-            if st.button("📊 Setup 3: Pivot Breakout\n(+33.6% Net ROI | 1:3.0 RR)", type=btn_s3_style, use_container_width=True):
-                st.session_state["active_live_setup"] = "SETUP3"
+            p3 = comm_presets["SETUP3"]
+            btn_s3_style = "primary" if (active_cfg.strategy_model == p3["model"] and active_cfg.sl_pts == p3["sl_pts"]) else "secondary"
+            if st.button(f"{p3['title']}\n({p3['badge']})", type=btn_s3_style, use_container_width=True, key=f"btn_p3_{comm_key}"):
+                new_cfg = CommodityStrategyConfig(
+                    commodity_key=comm_key,
+                    enabled=True,
+                    title=p3["title"],
+                    strategy_model=p3["model"],
+                    session_filter=p3["session"],
+                    sl_pts=float(p3["sl_pts"]),
+                    t1_rr=float(p3["t1_rr"]),
+                    t2_rr=float(p3["t2_rr"]),
+                    market_regime=p3["regime"],
+                    trailing_mode=p3["trailing"],
+                    max_daily_trades=int(p3["max_trades"]),
+                    lots=1
+                )
+                save_active_strategy_config(new_cfg)
                 st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -831,19 +885,23 @@ def main():
         """, unsafe_allow_html=True)
 
         # Active Live Setup Banner
+        status_tag = "🟢 TELEGRAM SIGNALS ACTIVE" if active_cfg.enabled else "⏸️ TELEGRAM SIGNALS PAUSED"
+        status_tag_color = "#059669" if active_cfg.enabled else "#DC2626"
+
         st.markdown(f"""
         <div class="mini-card" style="background:#F0F9FF; border-color:#BAE6FD; padding:6px 12px; margin-bottom:6px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <div style="display:flex; align-items:center; gap:6px;">
                     <span style="font-size:0.68rem; font-weight:800; color:#0369A1; letter-spacing:0.04em;">ACTIVE LIVE SETUP:</span>
-                    <span style="font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-weight:800; color:#0F172A;">{cur_setup['title']}</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-weight:800; color:#0F172A;">{active_cfg.title}</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:700; color:{status_tag_color}; margin-left:6px;">({status_tag})</span>
                 </div>
                 <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:#475569; display:flex; gap:10px; flex-wrap:wrap;">
-                    <span>SL: <b>{cur_setup['sl_pts']:.0f} pts</b></span>
-                    <span>Target 1: <b style="color:#059669;">1:{cur_setup['t1_rr']:.1f} RR (+{cur_setup['sl_pts']*cur_setup['t1_rr']:.0f} pts)</b></span>
-                    <span>Chop Filter: <b>ADX >= 18</b></span>
-                    <span>Trailing: <b>Pure Fixed SL</b></span>
-                    <span>Frequency: <b>{'Max 3/day' if cur_setup['max_trades'] == 3 else 'Unlimited'}</b></span>
+                    <span>SL: <b>{active_cfg.sl_pts:.1f} pts</b></span>
+                    <span>Target 1: <b style="color:#059669;">1:{active_cfg.t1_rr:.1f} RR (+{active_cfg.sl_pts*active_cfg.t1_rr:.1f} pts)</b></span>
+                    <span>Session: <b>{active_cfg.session_filter.split('(')[0]}</b></span>
+                    <span>Filter: <b>{active_cfg.market_regime.split('(')[0]}</b></span>
+                    <span>Frequency: <b>{'Max ' + str(active_cfg.max_daily_trades) + '/day' if active_cfg.max_daily_trades < 10 else 'Unlimited'}</b></span>
                 </div>
             </div>
         </div>
@@ -882,6 +940,18 @@ def main():
                             st.success(msg)
                         else:
                             st.error(msg)
+
+                    st.divider()
+                    st.markdown(f"**🔔 Alert Filter for {spec.name}**")
+                    comm_tg_enabled = st.toggle(
+                        f"Send {spec.name} Signals to Telegram",
+                        value=active_cfg.enabled,
+                        key=f"comm_tg_toggle_{comm_key}"
+                    )
+                    if comm_tg_enabled != active_cfg.enabled:
+                        active_cfg.enabled = comm_tg_enabled
+                        save_active_strategy_config(active_cfg)
+                        st.rerun()
 
                     with st.expander("⚙️ Change Credentials"):
                         new_tok = st.text_input("New Bot Token", type="password", key="new_tok_inp", placeholder="Paste new token...")
@@ -1069,17 +1139,16 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
 
         # ── SCENARIO B: SCANNING FOR NEW SIGNAL (CAPITAL AVAILABLE) ───────────
         else:
-            scaled_sl = round(cur_setup["sl_pts"] * (spec.default_sl_pts / 25.0), 2)
             signal = engine.generate_signal(
                 indicators=indicators,
-                strategy_model=cur_setup["model"],
+                strategy_model=active_cfg.strategy_model,
                 news_flag=news_flag,
                 current_price=ltp,
-                sl_pts=scaled_sl,
-                t1_rr=cur_setup["t1_rr"],
-                t2_rr=cur_setup["t2_rr"],
-                market_regime=cur_setup["regime"],
-                trailing_mode=cur_setup["trailing"],
+                sl_pts=active_cfg.sl_pts,
+                t1_rr=active_cfg.t1_rr,
+                t2_rr=active_cfg.t2_rr,
+                market_regime=active_cfg.market_regime,
+                trailing_mode=active_cfg.trailing_mode,
                 commodity_key=comm_key
             )
 
@@ -1089,27 +1158,27 @@ STRATEGY: <b>{strategy_name_short}</b> | ENTRY: <b>{entry_time_str}</b>
                 pill_txt = "#065F46"
                 pill_border = "#6EE7B7"
                 action_title = f"🟢 BUY CALL (CE) — {signal.option_contract}"
-                action_desc = f"Bullish setup on <b>{cur_setup['model']}</b>. Execute ATM Call Option."
+                action_desc = f"Bullish setup on <b>{active_cfg.strategy_model}</b>. Execute ATM Call Option."
             elif signal.signal == SignalType.SELL:
                 hero_cls = "hero-light-sell"
                 pill_bg = "#FFE4E6"
                 pill_txt = "#9F1239"
                 pill_border = "#FDA4AF"
                 action_title = f"🔴 BUY PUT (PE) — {signal.option_contract}"
-                action_desc = f"Bearish breakdown on <b>{cur_setup['model']}</b>. Execute ATM Put Option."
+                action_desc = f"Bearish breakdown on <b>{active_cfg.strategy_model}</b>. Execute ATM Put Option."
             else:
                 hero_cls = "hero-light-wait"
                 pill_bg = "#F1F5F9"
                 pill_txt = "#475569"
                 pill_border = "#CBD5E1"
                 action_title = "⚪ AWAITING CONVICTION SETUP"
-                action_desc = f"Scanning market via <b>{cur_setup['model']}</b> (Filter: {cur_setup['regime']}). Capital ready."
+                action_desc = f"Scanning market via <b>{active_cfg.strategy_model}</b> (Filter: {active_cfg.market_regime.split('(')[0]}). Capital ready."
 
             grid_html = ""
             if signal.signal != SignalType.NEUTRAL:
                 tot_risk_rs = signal.option_lot_risk_rs * live_lots
                 tot_t1_rs = signal.option_lot_target1_rs * live_lots
-                tot_t2_rs = (signal.option_target2 - signal.option_buy_price) * 100 * live_lots
+                tot_t2_rs = (signal.option_target2 - signal.option_buy_price) * spec.active_lot_size * live_lots
 
                 # 🔔 100% AUTOMATIC SIGNAL DISPATCH: Sends Telegram alert to mobile immediately during live market hours
                 if market_open:
@@ -1432,6 +1501,41 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                     <div class="mini-tile-sub">Max DD: ₹{report.max_drawdown_rs:,.0f}</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+            # ── 🚀 BIND BACKTEST STRATEGY TO LIVE TELEGRAM SCANNER BUTTON ────────
+            st.markdown("""
+            <div class="mini-card" style="background:#F0FDF4; border:1.5px solid #86EFAC; padding:8px 12px; margin-top:8px; margin-bottom:8px;">
+            """, unsafe_allow_html=True)
+            col_bind1, col_bind2 = st.columns([3.0, 1.2])
+            with col_bind1:
+                st.markdown(f"""
+                <div style="font-size:0.78rem; font-weight:800; color:#15803D; letter-spacing:0.02em;">
+                    🚀 BIND THIS BACKTEST STRATEGY TO {bt_spec.name.upper()} LIVE TELEGRAM SCANNER
+                </div>
+                <div style="font-size:0.72rem; color:#475569; font-family:'JetBrains Mono',monospace; margin-top:2px;">
+                    Model: <b>{strategy_choice}</b> | SL: <b>{sl_input:.1f} pts</b> | Target 1: <b>1:{t1_rr_input:.1f} RR</b> | Session: <b>{session_choice.split('(')[0].strip()}</b> | Filter: <b>{regime_choice.split('(')[0].strip()}</b>
+                </div>
+                """, unsafe_allow_html=True)
+            with col_bind2:
+                if st.button(f"💾 Apply to {bt_spec.name}", type="primary", use_container_width=True, key=f"btn_apply_live_scan_{bt_comm_key}"):
+                    new_cfg = CommodityStrategyConfig(
+                        commodity_key=bt_comm_key,
+                        enabled=True,
+                        title=f"{strategy_choice.split('(')[0].strip()} (Tuned)",
+                        strategy_model=strategy_choice,
+                        session_filter=session_choice,
+                        sl_pts=float(sl_input),
+                        t1_rr=float(t1_rr_input),
+                        t2_rr=float(t1_rr_input * 1.5),
+                        market_regime=regime_choice,
+                        trailing_mode=trail_choice,
+                        max_daily_trades=int(max_trades_input),
+                        lots=int(trade_lot_size)
+                    )
+                    save_active_strategy_config(new_cfg)
+                    st.success(f"✅ Active! {bt_spec.name} live Telegram signals will now trigger with these exact parameters!")
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
             

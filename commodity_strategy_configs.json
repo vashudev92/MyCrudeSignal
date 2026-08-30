@@ -1,0 +1,16 @@
+{
+  "SILVER": {
+    "commodity_key": "SILVER",
+    "enabled": true,
+    "title": "News Breakout (Custom Tuned)",
+    "strategy_model": "\ud83d\udcf0 High-Impact Energy News Breakout",
+    "session_filter": "\ud83c\udf05 Full MCX Session (09:00 - 23:30 IST)",
+    "sl_pts": 500.0,
+    "t1_rr": 3.0,
+    "t2_rr": 4.5,
+    "market_regime": "\ud83d\udd25 High Frequency (ADX >= 14)",
+    "trailing_mode": "\u274c Pure Fixed SL",
+    "max_daily_trades": 2,
+    "lots": 1
+  }
+}

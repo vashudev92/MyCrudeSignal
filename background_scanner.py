@@ -23,6 +23,7 @@ from signal_engine import SignalEngine, SignalType
 from alert_manager import get_alert_manager, send_tp_sl_alert
 
 from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec
+from strategy_presets import get_active_strategy_config
 
 IST = pytz.timezone(IST_TIMEZONE)
 
@@ -66,8 +67,21 @@ def _scanner_loop():
                 pass
 
             if token:
+                now_dt = datetime.now(IST)
+                is_us_prime = (16 <= now_dt.hour <= 22 or (now_dt.hour == 23 and now_dt.minute <= 30))
+
                 for comm_key in commodities:
                     spec = get_commodity_spec(comm_key)
+                    cfg = get_active_strategy_config(comm_key)
+
+                    # 1. Check if Telegram alerts are enabled for this specific commodity
+                    if not cfg.enabled:
+                        continue
+
+                    # 2. Check session window filter for this commodity
+                    if "US Prime" in cfg.session_filter and not is_us_prime:
+                        continue
+
                     try:
                         instrument_key = get_active_crude_instrument_key(token, commodity_key=comm_key)
                         df_candles = client.get_intraday_candles(instrument_key, interval="30minute")
@@ -145,14 +159,14 @@ def _scanner_loop():
                             else:
                                 signal = engine.generate_signal(
                                     indicators=indicators,
-                                    strategy_model="🎯 RSI + MACD Confluence",
+                                    strategy_model=cfg.strategy_model,
                                     news_flag="NEUTRAL",
                                     current_price=ltp,
-                                    sl_pts=spec.default_sl_pts,
-                                    t1_rr=spec.default_t1_rr,
-                                    t2_rr=spec.default_t2_rr,
-                                    market_regime="🎯 Balanced Quality (ADX >= 18)",
-                                    trailing_mode="❌ Pure Fixed SL",
+                                    sl_pts=cfg.sl_pts,
+                                    t1_rr=cfg.t1_rr,
+                                    t2_rr=cfg.t2_rr,
+                                    market_regime=cfg.market_regime,
+                                    trailing_mode=cfg.trailing_mode,
                                     commodity_key=comm_key,
                                 )
 
@@ -164,7 +178,7 @@ def _scanner_loop():
                                         stop_loss=signal.option_stop_loss,
                                         target1=signal.option_target1,
                                         target2=signal.option_target2,
-                                        strategy_name=f"{spec.icon} {spec.name} Confluence",
+                                        strategy_name=f"{spec.icon} {cfg.title}",
                                         contract_name=signal.option_contract,
                                         entry_premium=signal.option_buy_price,
                                         sl_premium=signal.option_stop_loss,
@@ -172,7 +186,7 @@ def _scanner_loop():
                                         t2_premium=signal.option_target2,
                                         risk_rs=signal.option_lot_risk_rs,
                                         t1_profit_rs=signal.option_lot_target1_rs,
-                                        lots=1,
+                                        lots=cfg.lots,
                                         timestamp=signal.timestamp,
                                     )
                                     if fired:
@@ -181,10 +195,10 @@ def _scanner_loop():
                                             "contract": signal.option_contract,
                                             "entry_spot": signal.entry_price,
                                             "entry_premium": signal.option_buy_price,
-                                            "sl_pts": spec.default_sl_pts,
-                                            "t1_pts": spec.default_sl_pts * spec.default_t1_rr,
-                                            "t2_pts": spec.default_sl_pts * spec.default_t2_rr,
-                                            "lots": 1,
+                                            "sl_pts": cfg.sl_pts,
+                                            "t1_pts": cfg.sl_pts * cfg.t1_rr,
+                                            "t2_pts": cfg.sl_pts * cfg.t2_rr,
+                                            "lots": cfg.lots,
                                             "t1_alerted": False
                                         }
                     except Exception as e:
