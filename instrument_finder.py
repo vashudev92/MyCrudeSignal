@@ -25,6 +25,11 @@ FALLBACK_KEYS = {
     "GOLD": "MCX_FO|565801",
     "SILVER": "MCX_FO|565850",
     "NATURALGAS": "MCX_FO|565920",
+    "NIFTY": "NSE_INDEX|Nifty 50",
+    "BANKNIFTY": "NSE_INDEX|Nifty Bank",
+    "FINNIFTY": "NSE_INDEX|Nifty Fin Service",
+    "SENSEX": "BSE_INDEX|SENSEX",
+    "MIDCPNIFTY": "NSE_INDEX|NIFTY MID SELECT",
 }
 
 
@@ -58,44 +63,53 @@ def _search_active_commodity_key(symbol_keyword: str, access_token: str) -> Opti
             # Only MCX futures
             if exchange != "MCX" or itype != "FUT":
                 continue
+
+            # Must match the symbol keyword
             if symbol_keyword.upper() not in symbol.upper() and symbol_keyword.upper() not in name.upper():
                 continue
+
+            # Check mini vs regular match
+            if "MINI" in symbol_keyword.upper() or "M" in symbol_keyword.upper():
+                if "M" not in symbol.upper() and "MINI" not in symbol.upper():
+                    continue
+
             try:
                 expiry = datetime.strptime(expiry_s, "%Y-%m-%d").date()
                 if expiry >= now:
                     candidates.append((expiry, ikey, symbol))
             except Exception:
-                pass
+                continue
 
         if not candidates:
             return None
 
+        # Sort by expiry ascending -> nearest expiry first
         candidates.sort(key=lambda x: x[0])
-        _, key, sym = candidates[0]
-        print(f"[InstrumentFinder] Active contract found: {sym} -> {key}")
-        return key
+        best_expiry, best_key, best_sym = candidates[0]
+        print(f"[InstrumentFinder] Found active {symbol_keyword} FUT: {best_sym} (key={best_key}, expiry={best_expiry})")
+        return best_key
 
     except Exception as e:
-        print(f"[InstrumentFinder] Search error for {symbol_keyword}: {e}")
+        print(f"[InstrumentFinder] API search failed for {symbol_keyword}: {e}")
         return None
 
 
-def get_active_crude_instrument_key(access_token: Optional[str] = None, commodity_key: str = "CRUDEOIL") -> str:
-    """
-    Returns the instrument key for the nearest-expiry MCX futures contract for any commodity.
-    Caches the result per trading day.
-    """
+def get_active_crude_instrument_key(access_token: str = "", commodity_key: str = "CRUDEOIL") -> str:
+    """Return the active instrument_key for any MCX Commodity or NSE/BSE Equity Index."""
     global _cached_instrument_keys, _cache_dates
-
+    today = datetime.now(IST).strftime("%Y-%m-%d")
     spec = get_commodity_spec(commodity_key)
     c_key = spec.key
-    today = datetime.now(IST).strftime("%Y-%m-%d")
 
-    # 1. Return today's cached key
-    if _cached_instrument_keys.get(c_key) and _cache_dates.get(c_key) == today:
+    # Equity Index resolution (NSE/BSE indices have constant well-known keys)
+    if spec.category == "INDEX":
+        return FALLBACK_KEYS.get(c_key, f"{spec.segment}|{spec.name}")
+
+    # 1. Return cached if valid for today
+    if _cache_dates.get(c_key) == today and _cached_instrument_keys.get(c_key):
         return _cached_instrument_keys[c_key]
 
-    # 2. Try search API
+    # 2. Search via API if token provided
     if access_token:
         key = _search_active_commodity_key(spec.symbol_keyword, access_token)
         if key:

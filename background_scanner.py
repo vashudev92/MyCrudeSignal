@@ -33,18 +33,34 @@ _active_trade_trackers: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
-def is_market_open() -> bool:
+def is_any_market_open() -> bool:
     now = datetime.now(IST)
     if now.weekday() in (5, 6):  # Saturday / Sunday
         return False
-    open_time = now.replace(hour=MARKET_OPEN_HOUR, minute=MARKET_OPEN_MIN, second=0)
-    close_time = now.replace(hour=MARKET_CLOSE_HOUR, minute=MARKET_CLOSE_MIN, second=0)
+    # Overall trading window from 09:00 to 23:30 IST
+    open_time = now.replace(hour=9, minute=0, second=0)
+    close_time = now.replace(hour=23, minute=30, second=0)
+    return open_time <= now <= close_time
+
+
+def is_asset_market_open(spec) -> bool:
+    now = datetime.now(IST)
+    if now.weekday() in (5, 6):  # Saturday / Sunday
+        return False
+    if spec.category == "INDEX":
+        # Equity market hours: 09:15 to 15:30 IST
+        open_time = now.replace(hour=9, minute=15, second=0)
+        close_time = now.replace(hour=15, minute=30, second=0)
+    else:
+        # MCX market hours: 09:00 to 23:30 IST
+        open_time = now.replace(hour=9, minute=0, second=0)
+        close_time = now.replace(hour=23, minute=30, second=0)
     return open_time <= now <= close_time
 
 
 def _scanner_loop():
     global _scanner_running, _active_trade_trackers
-    print("[BackgroundScanner] 🚀 Multi-Commodity 24/7 Autonomous Background Scanner Daemon Started.")
+    print("[BackgroundScanner] 🚀 Multi-Asset 24/7 Autonomous Background Scanner Daemon Started.")
     client = get_client()
     engine = SignalEngine()
     alert_mgr = get_alert_manager()
@@ -53,8 +69,8 @@ def _scanner_loop():
 
     while _scanner_running:
         try:
-            # ⛔ STRICT MARKET HOURS GUARD: Do NOT scan on weekends or outside MCX trading hours
-            if not is_market_open():
+            # ⛔ STRICT MARKET HOURS GUARD: Do NOT scan on weekends or outside trading hours
+            if not is_any_market_open():
                 time.sleep(60)
                 continue
 
@@ -69,17 +85,24 @@ def _scanner_loop():
             if token:
                 now_dt = datetime.now(IST)
                 is_us_prime = (16 <= now_dt.hour <= 22 or (now_dt.hour == 23 and now_dt.minute <= 30))
+                is_morning_drive = ((now_dt.hour == 9 and now_dt.minute >= 15) or (now_dt.hour == 10) or (now_dt.hour == 11 and now_dt.minute <= 30))
 
                 for comm_key in commodities:
                     spec = get_commodity_spec(comm_key)
                     cfg = get_active_strategy_config(comm_key)
 
-                    # 1. Check if Telegram alerts are enabled for this specific commodity
+                    # 1. Check if Telegram alerts are enabled for this specific asset
                     if not cfg.enabled:
                         continue
 
-                    # 2. Check session window filter for this commodity
+                    # 2. Check segment market hours (09:15-15:30 for NSE/BSE, 09:00-23:30 for MCX)
+                    if not is_asset_market_open(spec):
+                        continue
+
+                    # 3. Check session window filter for this asset
                     if "US Prime" in cfg.session_filter and not is_us_prime:
+                        continue
+                    if "Morning Opening Drive" in cfg.session_filter and not is_morning_drive:
                         continue
 
                     try:

@@ -649,29 +649,34 @@ def main():
     status_text = "MARKET OPEN" if market_open else "MARKET CLOSED"
     now_ist_str = datetime.now(IST).strftime("%H:%M:%S IST")
 
-    # ── Active Commodity Selection Pills ──────────────────────────────────────────
-    commodity_pills = {
+    # ── Active Asset Selection Pills (MCX Commodities & NSE/BSE Indices) ──────
+    all_asset_pills = {
         "CRUDEOIL": "🛢️ CRUDE OIL",
-        "GOLD": "🪙 GOLD MINI (GOLDM)",
-        "SILVER": "🥈 SILVER MINI (SILVERM)",
-        "NATURALGAS": "🔥 NATURAL GAS",
+        "GOLD": "🪙 GOLD MINI",
+        "SILVER": "🥈 SILVER MINI",
+        "NATURALGAS": "🔥 NAT GAS",
+        "NIFTY": "📈 NIFTY 50",
+        "BANKNIFTY": "🏦 BANK NIFTY",
+        "FINNIFTY": "💳 FIN NIFTY",
+        "SENSEX": "🏛️ SENSEX",
+        "MIDCPNIFTY": "⚡ MIDCAP NIFTY",
     }
 
     if "selected_comm_key" not in st.session_state:
         st.session_state["selected_comm_key"] = "CRUDEOIL"
 
-    col_nav1, col_nav2 = st.columns([2.8, 1.2])
+    col_nav1, col_nav2 = st.columns([3.2, 0.8])
     with col_nav1:
-        current_idx = list(commodity_pills.keys()).index(st.session_state["selected_comm_key"])
+        current_idx = list(all_asset_pills.keys()).index(st.session_state["selected_comm_key"]) if st.session_state["selected_comm_key"] in all_asset_pills else 0
         selected_pill_lbl = st.radio(
-            "Select Active Commodity",
-            list(commodity_pills.values()),
+            "Select Active Asset",
+            list(all_asset_pills.values()),
             index=current_idx,
             horizontal=True,
             label_visibility="collapsed",
             key="commodity_header_selector"
         )
-        for k, v in commodity_pills.items():
+        for k, v in all_asset_pills.items():
             if v == selected_pill_lbl and st.session_state["selected_comm_key"] != k:
                 st.session_state["selected_comm_key"] = k
                 st.rerun()
@@ -685,7 +690,7 @@ def main():
         <div>
             <span class="mini-nav-title">{spec.icon} {spec.name.upper()} TERMINAL</span>
             <span style="color:#CBD5E1; margin:0 8px;">|</span>
-            <span class="mini-nav-sub">Multi-Commodity Options Live Engine & Backtester</span>
+            <span class="mini-nav-sub">Multi-Asset Options Live Engine & Backtester (MCX & NSE/BSE)</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
             <div style="display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; background:{status_bg}; padding:2px 8px; border-radius:4px; border:1px solid {status_border};">
@@ -694,7 +699,7 @@ def main():
                 <span style="color:#94A3B8;">|</span>
                 <span style="color:#64748B;">{now_ist_str}</span>
             </div>
-            <span class="mini-badge">MCX:{spec.symbol_keyword} ({spec.default_lot_type} ATM)</span>
+            <span class="mini-badge">{spec.segment}:{spec.symbol_keyword} ({spec.active_lot_size} {spec.lot_unit})</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -756,92 +761,68 @@ def main():
         active_setup_key = st.session_state.get("active_live_setup", "SETUP1")
         cur_setup = SETUPS.get(active_setup_key, SETUPS["SETUP1"])
 
-        # ── MULTI-COMMODITY LIVE RADAR OVERVIEW ────────────────────────────────
-        crude_p = f"{ltp:,.0f}" if comm_key == "CRUDEOIL" else "7,240"
-        gold_p = f"{ltp:,.0f}" if comm_key == "GOLD" else "74,200"
-        silver_p = f"{ltp:,.0f}" if comm_key == "SILVER" else "86,500"
-        natgas_p = f"{ltp:.1f}" if comm_key == "NATURALGAS" else "245.0"
-
-        cfg_crude = get_active_strategy_config("CRUDEOIL")
-        cfg_gold = get_active_strategy_config("GOLD")
-        cfg_silver = get_active_strategy_config("SILVER")
-        cfg_natgas = get_active_strategy_config("NATURALGAS")
+        # ── MULTI-ASSET LIVE RADAR OVERVIEW ───────────────────────────────────
+        all_specs = COMMODITY_REGISTRY
+        grid_tiles = ""
+        for k_ast, sp in all_specs.items():
+            ast_cfg = get_active_strategy_config(k_ast)
+            p_str = f"{ltp:,.0f}" if k_ast == comm_key else (f"{sp.base_spot_estimate:,.0f}" if sp.tick_size >= 1.0 else f"{sp.base_spot_estimate:.1f}")
+            is_sel = (k_ast == comm_key)
+            bg_c = "#EFF6FF" if is_sel else "#FFFFFF"
+            bd_c = "#3B82F6" if is_sel else "#E2E8F0"
+            tg_txt = ("🟢 " + ast_cfg.strategy_model.split(" ")[1]) if ast_cfg.enabled else "⏸️ Muted"
+            tg_col = "#059669" if ast_cfg.enabled else "#94A3B8"
+            grid_tiles += f"""
+            <div style="padding:4px 6px; background:{bg_c}; border:1.5px solid {bd_c}; border-radius:5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700;">{sp.icon} {sp.key}</span>
+                    <b>₹{p_str}</b>
+                </div>
+                <div style="font-size:0.62rem; color:{tg_col}; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {tg_txt} ({ast_cfg.sl_pts:.0f}p)
+                </div>
+            </div>
+            """
 
         st.markdown(f"""
         <div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#E2E8F0;">
-            <div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MCX MULTI-COMMODITY 24/7 SCANNER RADAR:</div>
-            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-family:'JetBrains Mono',monospace; font-size:0.73rem;">
-                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='CRUDEOIL' else '#FFFFFF'}; border:1.5px solid {'#3B82F6' if comm_key=='CRUDEOIL' else '#E2E8F0'}; border-radius:5px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700;">🛢️ CRUDE OIL</span>
-                        <b>₹{crude_p}</b>
-                    </div>
-                    <div style="font-size:0.64rem; color:{'#059669' if cfg_crude.enabled else '#94A3B8'}; font-weight:600; margin-top:2px;">
-                        {'🟢 TG: ' + cfg_crude.strategy_model.split(' ')[1] if cfg_crude.enabled else '⏸️ TG Muted'} ({cfg_crude.sl_pts:.0f}p SL)
-                    </div>
-                </div>
-                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='GOLD' else '#FFFFFF'}; border:1.5px solid {'#3B82F6' if comm_key=='GOLD' else '#E2E8F0'}; border-radius:5px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700;">🪙 GOLD MINI</span>
-                        <b>₹{gold_p}</b>
-                    </div>
-                    <div style="font-size:0.64rem; color:{'#059669' if cfg_gold.enabled else '#94A3B8'}; font-weight:600; margin-top:2px;">
-                        {'🟢 TG: ' + cfg_gold.strategy_model.split(' ')[1] if cfg_gold.enabled else '⏸️ TG Muted'} ({cfg_gold.sl_pts:.0f}p SL)
-                    </div>
-                </div>
-                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='SILVER' else '#FFFFFF'}; border:1.5px solid {'#3B82F6' if comm_key=='SILVER' else '#E2E8F0'}; border-radius:5px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700;">🥈 SILVER MINI</span>
-                        <b>₹{silver_p}</b>
-                    </div>
-                    <div style="font-size:0.64rem; color:{'#059669' if cfg_silver.enabled else '#94A3B8'}; font-weight:600; margin-top:2px;">
-                        {'🟢 TG: ' + cfg_silver.strategy_model.split(' ')[1] if cfg_silver.enabled else '⏸️ TG Muted'} ({cfg_silver.sl_pts:.0f}p SL)
-                    </div>
-                </div>
-                <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='NATURALGAS' else '#FFFFFF'}; border:1.5px solid {'#3B82F6' if comm_key=='NATURALGAS' else '#E2E8F0'}; border-radius:5px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700;">🔥 NAT GAS</span>
-                        <b>₹{natgas_p}</b>
-                    </div>
-                    <div style="font-size:0.64rem; color:{'#059669' if cfg_natgas.enabled else '#94A3B8'}; font-weight:600; margin-top:2px;">
-                        {'🟢 TG: ' + cfg_natgas.strategy_model.split(' ')[1] if cfg_natgas.enabled else '⏸️ TG Muted'} ({cfg_natgas.sl_pts:.1f}p SL)
-                    </div>
-                </div>
+            <div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MULTI-ASSET 24/7 SCANNER RADAR (MCX COMMODITIES & NSE/BSE INDICES):</div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; font-family:'JetBrains Mono',monospace; font-size:0.72rem;">
+                {grid_tiles}
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("🎛️ Manage Multi-Commodity 24/7 Live Telegram Alert States"):
-            st.caption("Enable or mute alerts for any commodity. To update an asset's strategy, test in **Strategy Lab & Backtester** and click 'Apply to Asset'.")
-            col_tg_m1, col_tg_m2, col_tg_m3, col_tg_m4 = st.columns(4)
-            with col_tg_m1:
-                st.markdown(f"**🛢️ Crude Oil**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_crude.title}<br>SL: {cfg_crude.sl_pts:.0f}p | 1:{cfg_crude.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
-                tg_cr = st.toggle("Live Alerts", value=cfg_crude.enabled, key="mgr_tg_crude")
-                if tg_cr != cfg_crude.enabled:
-                    cfg_crude.enabled = tg_cr
-                    save_active_strategy_config(cfg_crude)
-                    st.rerun()
-            with col_tg_m2:
-                st.markdown(f"**🪙 Gold Mini**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_gold.title}<br>SL: {cfg_gold.sl_pts:.0f}p | 1:{cfg_gold.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
-                tg_gd = st.toggle("Live Alerts", value=cfg_gold.enabled, key="mgr_tg_gold")
-                if tg_gd != cfg_gold.enabled:
-                    cfg_gold.enabled = tg_gd
-                    save_active_strategy_config(cfg_gold)
-                    st.rerun()
-            with col_tg_m3:
-                st.markdown(f"**🥈 Silver Mini**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_silver.title}<br>SL: {cfg_silver.sl_pts:.0f}p | 1:{cfg_silver.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
-                tg_sv = st.toggle("Live Alerts", value=cfg_silver.enabled, key="mgr_tg_silver")
-                if tg_sv != cfg_silver.enabled:
-                    cfg_silver.enabled = tg_sv
-                    save_active_strategy_config(cfg_silver)
-                    st.rerun()
-            with col_tg_m4:
-                st.markdown(f"**🔥 Natural Gas**<br><span style='font-size:0.75rem; color:#475569;'>{cfg_natgas.title}<br>SL: {cfg_natgas.sl_pts:.1f}p | 1:{cfg_natgas.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
-                tg_ng = st.toggle("Live Alerts", value=cfg_natgas.enabled, key="mgr_tg_natgas")
-                if tg_ng != cfg_natgas.enabled:
-                    cfg_natgas.enabled = tg_ng
-                    save_active_strategy_config(cfg_natgas)
-                    st.rerun()
+        with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)"):
+            st.caption("Enable or mute alerts for any asset. To update an asset's strategy, test in **Strategy Lab & Backtester** and click 'Apply to Asset'.")
+            st.markdown("**🛢️ MCX Commodities**")
+            col_mcx = st.columns(4)
+            mcx_keys = ["CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"]
+            for idx_m, k_m in enumerate(mcx_keys):
+                sp_m = get_commodity_spec(k_m)
+                cfg_m = get_active_strategy_config(k_m)
+                with col_mcx[idx_m]:
+                    st.markdown(f"**{sp_m.icon} {sp_m.name}**<br><span style='font-size:0.72rem; color:#475569;'>{cfg_m.title}<br>SL: {cfg_m.sl_pts:.0f}p | 1:{cfg_m.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                    tg_val = st.toggle("Live Alerts", value=cfg_m.enabled, key=f"mgr_tg_{k_m}")
+                    if tg_val != cfg_m.enabled:
+                        cfg_m.enabled = tg_val
+                        save_active_strategy_config(cfg_m)
+                        st.rerun()
+
+            st.divider()
+            st.markdown("**📈 NSE & BSE Equity Indices**")
+            col_idx = st.columns(5)
+            idx_keys = ["NIFTY", "BANKNIFTY", "FINNIFTY", "SENSEX", "MIDCPNIFTY"]
+            for idx_i, k_i in enumerate(idx_keys):
+                sp_i = get_commodity_spec(k_i)
+                cfg_i = get_active_strategy_config(k_i)
+                with col_idx[idx_i]:
+                    st.markdown(f"**{sp_i.icon} {sp_i.name}**<br><span style='font-size:0.72rem; color:#475569;'>{cfg_i.title}<br>SL: {cfg_i.sl_pts:.0f}p | 1:{cfg_i.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                    tg_val = st.toggle("Live Alerts", value=cfg_i.enabled, key=f"mgr_tg_{k_i}")
+                    if tg_val != cfg_i.enabled:
+                        cfg_i.enabled = tg_val
+                        save_active_strategy_config(cfg_i)
+                        st.rerun()
 
         # ── 3 QUICK-SWITCH VERIFIED LIVE STRATEGY PRESET BUTTONS ───────────────
         comm_presets = get_commodity_presets(comm_key)
@@ -1356,14 +1337,20 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             "🪙 MCX Gold Mini (100g)": "GOLD",
             "🥈 MCX Silver Mini (5kg)": "SILVER",
             "🔥 MCX Natural Gas (1250 mmBtu)": "NATURALGAS",
+            "📈 NSE Nifty 50 (75 Qty)": "NIFTY",
+            "🏦 NSE Bank Nifty (15 Qty)": "BANKNIFTY",
+            "💳 NSE Fin Nifty (25 Qty)": "FINNIFTY",
+            "🏛️ BSE Sensex (10 Qty)": "SENSEX",
+            "⚡ NSE Midcap Nifty (50 Qty)": "MIDCPNIFTY",
         }
 
         row0_c1, row0_c2 = st.columns([1.6, 2.4])
         with row0_c1:
+            bt_idx = list(comm_options_map.values()).index(comm_key) if comm_key in comm_options_map.values() else 0
             bt_comm_label = st.selectbox(
-                "Commodity Asset to Backtest",
+                "Asset to Backtest (MCX / NSE / BSE)",
                 list(comm_options_map.keys()),
-                index=list(comm_options_map.values()).index(comm_key),
+                index=bt_idx,
                 key="bt_commodity_select"
             )
             bt_comm_key = comm_options_map[bt_comm_label]
@@ -1371,7 +1358,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         with row0_c2:
             st.markdown(f"""
             <div style="font-family:'JetBrains Mono',monospace; font-size:0.74rem; color:#475569; padding-top:24px;">
-                <b>Lot:</b> {bt_spec.active_lot_size} {bt_spec.lot_unit} | <b>Strike Step:</b> {bt_spec.strike_step:.0f} pts | <b>Base Spot:</b> ₹{bt_spec.base_spot_estimate:,.0f} | <b>Benchmark SL:</b> {bt_spec.default_sl_pts:.0f} pts
+                <b>Segment:</b> {bt_spec.segment} | <b>Lot:</b> {bt_spec.active_lot_size} {bt_spec.lot_unit} | <b>Strike Step:</b> {bt_spec.strike_step:.0f} pts | <b>Base Spot:</b> ₹{bt_spec.base_spot_estimate:,.0f} | <b>Benchmark SL:</b> {bt_spec.default_sl_pts:.0f} pts
             </div>
             """, unsafe_allow_html=True)
 
@@ -1398,11 +1385,22 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             )
 
         with row1_c3:
+            if bt_spec.category == "INDEX":
+                avail_sessions = [
+                    "⚡ Full Equity Session (09:15 - 15:30 IST)",
+                    "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+                    "🌅 Full MCX Session (09:00 - 23:30 IST)"
+                ]
+            else:
+                avail_sessions = [
+                    "🔥 US Prime Session (16:30 - 22:30 IST)",
+                    "🌅 Full MCX Session (09:00 - 23:30 IST)"
+                ]
             session_choice = st.selectbox(
                 "Session Window",
-                ["🔥 US Prime Session (16:30 - 22:30 IST)", "🌅 Full MCX Session (09:00 - 23:30 IST)"],
+                avail_sessions,
                 index=0,
-                key="bt_session"
+                key=f"bt_session_{bt_comm_key}"
             )
 
         with row1_c4:

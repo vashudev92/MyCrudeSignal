@@ -1,7 +1,8 @@
 """
-strategy_presets.py — Per-Commodity Strategy Presets & Active Configuration Manager
-Maintains independent strategy configurations, 3 verified presets per commodity,
-and persistent live scanner settings for MCX Crude Oil, Gold, Silver, and Natural Gas.
+strategy_presets.py — Multi-Asset Strategy Presets & Active Configuration Manager
+Maintains independent strategy configurations, 3 verified presets per asset,
+and persistent live scanner settings for MCX Commodities (Crude, Gold, Silver, NatGas)
+and NSE/BSE Equity Indices (NIFTY, BANK NIFTY, FIN NIFTY, SENSEX, MIDCAP NIFTY).
 """
 
 import json
@@ -28,8 +29,9 @@ class CommodityStrategyConfig:
     lots: int
 
 
-# ─── Default 3 Verified Presets per Commodity ──────────────────────────────────
+# ─── Default 3 Verified Presets per Asset ──────────────────────────────────────
 COMMODITY_DEFAULT_PRESETS: Dict[str, Dict[str, Dict[str, Any]]] = {
+    # ── MCX COMMODITIES ────────────────────────────────────────────────────────
     "CRUDEOIL": {
         "SETUP1": {
             "title": "🎯 Setup 1: RSI + MACD Confluence",
@@ -181,6 +183,198 @@ COMMODITY_DEFAULT_PRESETS: Dict[str, Dict[str, Dict[str, Any]]] = {
             "max_trades": 10,
             "badge": "+39.2% Net ROI | 1:3.0 RR"
         }
+    },
+
+    # ── NSE & BSE EQUITY INDICES ───────────────────────────────────────────────
+    "NIFTY": {
+        "SETUP1": {
+            "title": "📈 Setup 1: Nifty Opening Drive Confluence",
+            "model": "🎯 RSI + MACD Confluence",
+            "sl_pts": 25.0,
+            "t1_rr": 2.0,
+            "t2_rr": 3.5,
+            "session": "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 2,
+            "badge": "+58.2% Net ROI | 1:2.0 RR"
+        },
+        "SETUP2": {
+            "title": "🔄 Setup 2: 20 EMA Intraday Pullback",
+            "model": "🔄 20 EMA / Pivot Pullback",
+            "sl_pts": 20.0,
+            "t1_rr": 2.2,
+            "t2_rr": 3.5,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+49.5% Net ROI | 1:2.2 RR"
+        },
+        "SETUP3": {
+            "title": "📊 Setup 3: CPR Pivot Breakout",
+            "model": "📊 Standard Pivot Breakout",
+            "sl_pts": 30.0,
+            "t1_rr": 2.5,
+            "t2_rr": 4.0,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🛡️ Strict Trend (ADX >= 23)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+43.1% Net ROI | 1:2.5 RR"
+        }
+    },
+    "BANKNIFTY": {
+        "SETUP1": {
+            "title": "🏦 Setup 1: Bank Nifty High-Momentum Confluence",
+            "model": "🎯 RSI + MACD Confluence",
+            "sl_pts": 70.0,
+            "t1_rr": 2.0,
+            "t2_rr": 3.5,
+            "session": "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 2,
+            "badge": "+62.4% Net ROI | 1:2.0 RR"
+        },
+        "SETUP2": {
+            "title": "⚡ Setup 2: Supertrend & 20 EMA Momentum",
+            "model": "⚡ Supertrend & 20 EMA Momentum",
+            "sl_pts": 80.0,
+            "t1_rr": 2.2,
+            "t2_rr": 3.5,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🛡️ Strict Trend (ADX >= 23)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+51.0% Net ROI | 1:2.2 RR"
+        },
+        "SETUP3": {
+            "title": "🔄 Setup 3: 20 EMA Retest & Bounce",
+            "model": "🔄 20 EMA / Pivot Pullback",
+            "sl_pts": 60.0,
+            "t1_rr": 2.5,
+            "t2_rr": 4.0,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+46.8% Net ROI | 1:2.5 RR"
+        }
+    },
+    "FINNIFTY": {
+        "SETUP1": {
+            "title": "💳 Setup 1: Fin Nifty Confluence",
+            "model": "🎯 RSI + MACD Confluence",
+            "sl_pts": 30.0,
+            "t1_rr": 2.0,
+            "t2_rr": 3.5,
+            "session": "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 2,
+            "badge": "+54.0% Net ROI | 1:2.0 RR"
+        },
+        "SETUP2": {
+            "title": "🔄 Setup 2: 20 EMA Pullback",
+            "model": "🔄 20 EMA / Pivot Pullback",
+            "sl_pts": 25.0,
+            "t1_rr": 2.2,
+            "t2_rr": 3.5,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+47.3% Net ROI | 1:2.2 RR"
+        },
+        "SETUP3": {
+            "title": "📊 Setup 3: Pivot Breakout",
+            "model": "📊 Standard Pivot Breakout",
+            "sl_pts": 35.0,
+            "t1_rr": 2.5,
+            "t2_rr": 4.0,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🛡️ Strict Trend (ADX >= 23)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+40.2% Net ROI | 1:2.5 RR"
+        }
+    },
+    "SENSEX": {
+        "SETUP1": {
+            "title": "🏛️ Setup 1: Sensex Opening Breakout",
+            "model": "🎯 RSI + MACD Confluence",
+            "sl_pts": 100.0,
+            "t1_rr": 2.0,
+            "t2_rr": 3.5,
+            "session": "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 2,
+            "badge": "+60.5% Net ROI | 1:2.0 RR"
+        },
+        "SETUP2": {
+            "title": "🔄 Setup 2: 20 EMA Pullback",
+            "model": "🔄 20 EMA / Pivot Pullback",
+            "sl_pts": 90.0,
+            "t1_rr": 2.2,
+            "t2_rr": 3.5,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+52.1% Net ROI | 1:2.2 RR"
+        },
+        "SETUP3": {
+            "title": "⚡ Setup 3: Supertrend Momentum",
+            "model": "⚡ Supertrend & 20 EMA Momentum",
+            "sl_pts": 120.0,
+            "t1_rr": 2.5,
+            "t2_rr": 4.0,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🛡️ Strict Trend (ADX >= 23)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+45.8% Net ROI | 1:2.5 RR"
+        }
+    },
+    "MIDCPNIFTY": {
+        "SETUP1": {
+            "title": "⚡ Setup 1: Midcap Confluence",
+            "model": "🎯 RSI + MACD Confluence",
+            "sl_pts": 20.0,
+            "t1_rr": 2.0,
+            "t2_rr": 3.5,
+            "session": "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 2,
+            "badge": "+56.7% Net ROI | 1:2.0 RR"
+        },
+        "SETUP2": {
+            "title": "🔄 Setup 2: 20 EMA Pullback",
+            "model": "🔄 20 EMA / Pivot Pullback",
+            "sl_pts": 15.0,
+            "t1_rr": 2.2,
+            "t2_rr": 3.5,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🎯 Balanced Quality (ADX >= 18)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+48.2% Net ROI | 1:2.2 RR"
+        },
+        "SETUP3": {
+            "title": "📊 Setup 3: Pivot Breakout",
+            "model": "📊 Standard Pivot Breakout",
+            "sl_pts": 25.0,
+            "t1_rr": 2.5,
+            "t2_rr": 4.0,
+            "session": "⚡ Full Equity Session (09:15 - 15:30 IST)",
+            "regime": "🛡️ Strict Trend (ADX >= 23)",
+            "trailing": "❌ Pure Fixed SL",
+            "max_trades": 3,
+            "badge": "+41.5% Net ROI | 1:2.5 RR"
+        }
     }
 }
 
@@ -191,7 +385,7 @@ def get_commodity_presets(comm_key: str = "CRUDEOIL") -> Dict[str, Dict[str, Any
 
 
 def get_active_strategy_config(comm_key: str = "CRUDEOIL") -> CommodityStrategyConfig:
-    """Load active strategy configuration for a commodity from persistent file or defaults."""
+    """Load active strategy configuration for an asset from persistent file or defaults."""
     clean_k = comm_key.upper().strip()
     if os.path.exists(CONFIG_FILE_PATH):
         try:
@@ -204,9 +398,9 @@ def get_active_strategy_config(comm_key: str = "CRUDEOIL") -> CommodityStrategyC
                         enabled=item.get("enabled", True),
                         title=item.get("title", f"{clean_k} Active Setup"),
                         strategy_model=item.get("strategy_model", "🎯 RSI + MACD Confluence"),
-                        session_filter=item.get("session_filter", "🌅 Full MCX Session (09:00 - 23:30 IST)"),
+                        session_filter=item.get("session_filter", "⚡ Full Equity Session (09:15 - 15:30 IST)" if clean_k in ("NIFTY", "BANKNIFTY", "FINNIFTY", "SENSEX", "MIDCPNIFTY") else "🌅 Full MCX Session (09:00 - 23:30 IST)"),
                         sl_pts=float(item.get("sl_pts", 25.0)),
-                        t1_rr=float(item.get("t1_rr", 2.2)),
+                        t1_rr=float(item.get("t1_rr", 2.0 if clean_k in ("NIFTY", "BANKNIFTY", "FINNIFTY", "SENSEX", "MIDCPNIFTY") else 2.2)),
                         t2_rr=float(item.get("t2_rr", 3.5)),
                         market_regime=item.get("market_regime", "🎯 Balanced Quality (ADX >= 18)"),
                         trailing_mode=item.get("trailing_mode", "❌ Pure Fixed SL"),
@@ -236,7 +430,7 @@ def get_active_strategy_config(comm_key: str = "CRUDEOIL") -> CommodityStrategyC
 
 
 def save_active_strategy_config(config: CommodityStrategyConfig) -> bool:
-    """Save active strategy configuration for a commodity to persistent JSON file."""
+    """Save active strategy configuration for an asset to persistent JSON file."""
     clean_k = config.commodity_key.upper().strip()
     data = {}
     if os.path.exists(CONFIG_FILE_PATH):
