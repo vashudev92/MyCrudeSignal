@@ -39,6 +39,20 @@ def _play_alert_sound(signal_type: str):
         print("\a")
 
 
+# ─── Market Hours Guard ───────────────────────────────────────────────────────
+
+def is_market_open() -> bool:
+    from config import IST_TIMEZONE, MARKET_OPEN_HOUR, MARKET_OPEN_MIN, MARKET_CLOSE_HOUR, MARKET_CLOSE_MIN
+    import pytz
+    IST = pytz.timezone(IST_TIMEZONE)
+    now = datetime.now(IST)
+    if now.weekday() in (5, 6):  # Saturday (5) / Sunday (6)
+        return False
+    open_time = now.replace(hour=MARKET_OPEN_HOUR, minute=MARKET_OPEN_MIN, second=0)
+    close_time = now.replace(hour=MARKET_CLOSE_HOUR, minute=MARKET_CLOSE_MIN, second=0)
+    return open_time <= now <= close_time
+
+
 # ─── Telegram Alert ───────────────────────────────────────────────────────────
 
 def get_telegram_creds() -> tuple[str, str, bool]:
@@ -60,8 +74,12 @@ def get_telegram_creds() -> tuple[str, str, bool]:
     return token, chat_id, enabled
 
 
-def send_telegram_message(message: str) -> bool:
+def send_telegram_message(message: str, force: bool = False) -> bool:
     """Send a Telegram message via bot API."""
+    if not force and not is_market_open():
+        print("[AlertManager] [PAUSED] Market is closed (Weekend/Night). Suppressed Telegram message.")
+        return False
+
     token, chat_id, enabled = get_telegram_creds()
     if not token or not chat_id:
         return False
@@ -94,7 +112,7 @@ def send_telegram_test_message() -> tuple[bool, str]:
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "🚀 You will now receive instant trade alerts with exact entry, stop loss, and targets on your phone!"
     )
-    success = send_telegram_message(test_msg)
+    success = send_telegram_message(test_msg, force=True)
     if success:
         return True, "Telegram test message sent successfully! Check your Telegram app."
     else:
@@ -194,18 +212,6 @@ def send_tp_sl_alert(
         )
 
     return send_telegram_message(msg)
-
-
-def is_market_open() -> bool:
-    from config import IST_TIMEZONE, MARKET_OPEN_HOUR, MARKET_OPEN_MIN, MARKET_CLOSE_HOUR, MARKET_CLOSE_MIN
-    import pytz
-    IST = pytz.timezone(IST_TIMEZONE)
-    now = datetime.now(IST)
-    if now.weekday() in (5, 6):  # Saturday (5) / Sunday (6)
-        return False
-    open_time = now.replace(hour=MARKET_OPEN_HOUR, minute=MARKET_OPEN_MIN, second=0)
-    close_time = now.replace(hour=MARKET_CLOSE_HOUR, minute=MARKET_CLOSE_MIN, second=0)
-    return open_time <= now <= close_time
 
 
 # ─── Alert Manager ────────────────────────────────────────────────────────────
