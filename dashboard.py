@@ -752,21 +752,26 @@ def main():
         cur_setup = SETUPS.get(active_setup_key, SETUPS["SETUP1"])
 
         # ── MULTI-COMMODITY LIVE RADAR OVERVIEW ────────────────────────────────
+        crude_p = f"{ltp:,.0f}" if comm_key == "CRUDEOIL" else "7,240"
+        gold_p = f"{ltp:,.0f}" if comm_key == "GOLD" else "74,200"
+        silver_p = f"{ltp:,.0f}" if comm_key == "SILVER" else "86,500"
+        natgas_p = f"{ltp:.1f}" if comm_key == "NATURALGAS" else "245.0"
+
         st.markdown(f"""
         <div class="mini-card" style="padding:6px 12px; margin-bottom:6px; background:#F8FAFC; border-color:#E2E8F0;">
             <div style="font-size:0.65rem; font-weight:800; color:#334155; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">🌐 MCX MULTI-COMMODITY SCANNER RADAR:</div>
             <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-family:'JetBrains Mono',monospace; font-size:0.73rem;">
                 <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='CRUDEOIL' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='CRUDEOIL' else '#E2E8F0'}; border-radius:4px;">
-                    <span style="font-weight:700;">🛢️ CRUDE OIL:</span> <b>₹{ltp:.0f if comm_key=='CRUDEOIL' else 7240}</b>
+                    <span style="font-weight:700;">🛢️ CRUDE OIL:</span> <b>₹{crude_p}</b>
                 </div>
                 <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='GOLD' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='GOLD' else '#E2E8F0'}; border-radius:4px;">
-                    <span style="font-weight:700;">🪙 GOLD MINI:</span> <b>₹{ltp:.0f if comm_key=='GOLD' else 74200}</b>
+                    <span style="font-weight:700;">🪙 GOLD MINI:</span> <b>₹{gold_p}</b>
                 </div>
                 <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='SILVER' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='SILVER' else '#E2E8F0'}; border-radius:4px;">
-                    <span style="font-weight:700;">🥈 SILVER MINI:</span> <b>₹{ltp:.0f if comm_key=='SILVER' else 86500}</b>
+                    <span style="font-weight:700;">🥈 SILVER MINI:</span> <b>₹{silver_p}</b>
                 </div>
                 <div style="padding:4px 6px; background:{'#EFF6FF' if comm_key=='NATURALGAS' else '#FFFFFF'}; border:1px solid {'#93C5FD' if comm_key=='NATURALGAS' else '#E2E8F0'}; border-radius:4px;">
-                    <span style="font-weight:700;">🔥 NAT GAS:</span> <b>₹{ltp:.1f if comm_key=='NATURALGAS' else 215.4}</b>
+                    <span style="font-weight:700;">🔥 NAT GAS:</span> <b>₹{natgas_p}</b>
                 </div>
             </div>
         </div>
