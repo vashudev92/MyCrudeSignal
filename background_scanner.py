@@ -166,7 +166,10 @@ def _scanner_loop():
                                         pts_move=pts_move,
                                         pnl_rs=gross_rs,
                                         exit_premium=cur_prem,
-                                        lots=tr["lots"]
+                                        lots=tr["lots"],
+                                        commodity_key=comm_key,
+                                        trade_id=tr.get("trade_id", ""),
+                                        entry_premium=tr.get("entry_premium", 0.0),
                                     )
                                     _active_trade_trackers[comm_key] = None
 
@@ -178,7 +181,10 @@ def _scanner_loop():
                                         pts_move=pts_move,
                                         pnl_rs=gross_rs,
                                         exit_premium=cur_prem,
-                                        lots=tr["lots"]
+                                        lots=tr["lots"],
+                                        commodity_key=comm_key,
+                                        trade_id=tr.get("trade_id", ""),
+                                        entry_premium=tr.get("entry_premium", 0.0),
                                     )
                                     tr["t1_alerted"] = True
 
@@ -190,7 +196,10 @@ def _scanner_loop():
                                         pts_move=0.0,
                                         pnl_rs=0.0,
                                         exit_premium=tr["entry_premium"],
-                                        lots=tr["lots"]
+                                        lots=tr["lots"],
+                                        commodity_key=comm_key,
+                                        trade_id=tr.get("trade_id", ""),
+                                        entry_premium=tr.get("entry_premium", 0.0),
                                     )
                                     _active_trade_trackers[comm_key] = None
 
@@ -202,7 +211,10 @@ def _scanner_loop():
                                         pts_move=pts_move,
                                         pnl_rs=gross_rs,
                                         exit_premium=cur_prem,
-                                        lots=tr["lots"]
+                                        lots=tr["lots"],
+                                        commodity_key=comm_key,
+                                        trade_id=tr.get("trade_id", ""),
+                                        entry_premium=tr.get("entry_premium", 0.0),
                                     )
                                     _active_trade_trackers[comm_key] = None
                                     _post_loss_cooldowns[comm_key] = time.time() + 900  # 15 min cooling period after SL
@@ -224,6 +236,7 @@ def _scanner_loop():
 
                                 if signal.signal != SignalType.NEUTRAL:
                                     candle_ts = str(df_candles["date"].iloc[-1]) if ("date" in df_candles and not df_candles.empty) else ""
+                                    trade_id = f"#{spec.symbol_keyword}_{now_dt.strftime('%y%m%d_%H%M')}"
                                     fired = alert_mgr.trigger(
                                         signal_type=signal.signal.value,
                                         confidence=signal.confidence.value,
@@ -243,6 +256,7 @@ def _scanner_loop():
                                         timestamp=signal.timestamp,
                                         commodity_key=comm_key,
                                         candle_time=candle_ts,
+                                        trade_id=trade_id,
                                     )
                                     if fired:
                                         _daily_trade_counts[comm_key] = _daily_trade_counts.get(comm_key, 0) + 1
@@ -255,6 +269,7 @@ def _scanner_loop():
                                             "t1_pts": cfg.sl_pts * cfg.t1_rr,
                                             "t2_pts": cfg.sl_pts * cfg.t2_rr,
                                             "lots": cfg.lots,
+                                            "trade_id": trade_id,
                                             "t1_alerted": False
                                         }
                     except Exception as e:

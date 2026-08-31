@@ -136,39 +136,43 @@ def _format_telegram_message(
     t1_profit_rs: float = 2750.0,
     lots: int = 1,
     timestamp: str = "",
+    commodity_key: str = "CRUDEOIL",
+    trade_id: str = "",
 ) -> str:
     is_buy = (signal_type == "BUY")
     emoji = "🟢" if is_buy else "🔴"
     action_header = "BUY CALL (CE)" if is_buy else "BUY PUT (PE)"
 
-    # Dynamic commodity branding
-    c_upper = contract_name.upper()
-    if "GOLD" in c_upper:
-        comm_icon = "🪙"
-        comm_title = "GOLD MCX"
-    elif "SILVER" in c_upper:
-        comm_icon = "🥈"
-        comm_title = "SILVER MCX"
-    elif "NAT" in c_upper or "GAS" in c_upper:
-        comm_icon = "🔥"
-        comm_title = "NATGAS MCX"
-    else:
-        comm_icon = "🛢️"
-        comm_title = "CRUDE MCX"
+    from commodity_registry import get_commodity_spec
+    spec = get_commodity_spec(commodity_key)
+
+    if not trade_id:
+        trade_id = f"#{spec.symbol_keyword}_{datetime.now().strftime('%y%m%d_%H%M')}"
+
+    total_qty = spec.active_lot_size * lots
+    t2_profit_rs = max(0.0, round((t2_premium - entry_premium) * total_qty, 2))
+    sl_pts = abs(entry_premium - sl_premium) / max(0.01, spec.atm_delta)
+    t1_pts = abs(t1_premium - entry_premium) / max(0.01, spec.atm_delta)
+    t2_pts = abs(t2_premium - entry_premium) / max(0.01, spec.atm_delta)
 
     return (
-        f"{emoji} <b>{comm_title} ALERT: {action_header}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📌 <b>Strategy:</b> {strategy_name}\n"
-        f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📍 <b>Option Entry:</b> ₹{entry_premium:.2f} (Spot: ₹{entry:.0f})\n"
-        f"🛑 <b>Stop Loss:</b>     ₹{sl_premium:.2f} (Risk: -₹{risk_rs:,.0f})\n"
-        f"🎯 <b>Target 1:</b>       ₹{t1_premium:.2f} (+₹{t1_profit_rs:,.0f} Profit)\n"
-        f"🚀 <b>Target 2:</b>       ₹{t2_premium:.2f} (Runner Target)\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"⏰ <b>Time:</b> {timestamp} | <b>Confidence:</b> {confidence}\n"
-        f"⚡ <i>Direct from Multi-Commodity Pro Terminal</i>"
+        f"{emoji} <b>TRADE ALERT: {action_header}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{spec.icon} <b>ASSET:</b> <b>{spec.name.upper()}</b> (<code>{spec.segment}</code>)\n"
+        f"📑 <b>CONTRACT:</b> <code>{contract_name}</code>\n"
+        f"📦 <b>SIZE:</b> {lots} Lot ({total_qty} {spec.lot_unit})\n"
+        f"🆔 <b>TRADE ID:</b> <code>{trade_id}</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"<blockquote>"
+        f"📍 <b>ENTRY PREMIUM:</b> <b>₹{entry_premium:.2f}</b> (Spot: ₹{entry:,.0f})\n"
+        f"🛑 <b>STOP LOSS:</b>     <b>₹{sl_premium:.2f}</b> (-{sl_pts:.1f}p | Risk: -₹{risk_rs:,.0f})\n"
+        f"🎯 <b>TARGET 1:</b>       <b>₹{t1_premium:.2f}</b> (+{t1_pts:.1f}p | +₹{t1_profit_rs:,.0f})\n"
+        f"🚀 <b>TARGET 2:</b>       <b>₹{t2_premium:.2f}</b> (+{t2_pts:.1f}p | +₹{t2_profit_rs:,.0f})\n"
+        f"</blockquote>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 <b>Setup:</b> {strategy_name}\n"
+        f"⏰ <b>Time:</b> {timestamp} | <b>Conviction:</b> {confidence}\n"
+        f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
     )
 
 
@@ -179,9 +183,12 @@ def send_tp_sl_alert(
     pnl_rs: float,
     exit_premium: float,
     lots: int = 1,
-    timestamp: str = ""
+    timestamp: str = "",
+    commodity_key: str = "CRUDEOIL",
+    trade_id: str = "",
+    entry_premium: float = 0.0,
 ) -> bool:
-    """Sends Target 1, Target 2, and Stop Loss hit alerts to Telegram."""
+    """Sends Target 1, Target 2, Stop Loss, and Trailing Breakeven hit alerts to Telegram."""
     token, chat_id, enabled = get_telegram_creds()
     if not token or not chat_id:
         return False
@@ -189,69 +196,78 @@ def send_tp_sl_alert(
     if not timestamp:
         timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
 
-    c_upper = contract_name.upper()
-    if "GOLD" in c_upper:
-        comm_icon = "🪙"
-        comm_title = "GOLD MCX"
-    elif "SILVER" in c_upper:
-        comm_icon = "🥈"
-        comm_title = "SILVER MCX"
-    elif "NAT" in c_upper or "GAS" in c_upper:
-        comm_icon = "🔥"
-        comm_title = "NATGAS MCX"
-    else:
-        comm_icon = "🛢️"
-        comm_title = "CRUDE MCX"
+    from commodity_registry import get_commodity_spec
+    spec = get_commodity_spec(commodity_key)
+    trade_id_tag = f"🆔 <b>LINKED TRADE:</b> <code>{trade_id}</code>\n" if trade_id else ""
 
     if event_type == "TARGET1":
         msg = (
-            f"🎯 <b>{comm_title} TARGET 1 HIT! (+{pts_move:.0f} PTS)</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
-            f"💰 <b>Profit Booked:</b> +₹{pnl_rs:,.0f}\n"
-            f"📍 <b>Option Value:</b> ₹{exit_premium:.2f}\n"
-            f"🛡️ <b>Action:</b> Book Partial / Trail SL to Cost!\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
+            f"🎯 <b>TARGET 1 ACHIEVED! (+{pts_move:.1f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{spec.icon} <b>ASSET:</b> <b>{spec.name.upper()}</b>\n"
+            f"📑 <b>CONTRACT:</b> <code>{contract_name}</code> ({lots} Lot)\n"
+            f"{trade_id_tag}"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<blockquote>"
+            f"💰 <b>PROFIT SECURED:</b> <b>+₹{pnl_rs:,.0f}</b>\n"
+            f"📍 <b>OPTION VALUE:</b> ₹{exit_premium:.2f}\n"
+            f"🛡️ <b>ACTION:</b> Book 50% & Lock SL to Cost (₹{entry_premium:.2f})!\n"
+            f"</blockquote>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp} | <b>Risk:</b> ZERO (Protected)\n"
+            f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
         )
     elif event_type == "TARGET2":
         msg = (
-            f"🚀 <b>{comm_title} TARGET 2 (RUNNER) HIT! (+{pts_move:.0f} PTS)</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
-            f"💰 <b>Total Profit:</b> +₹{pnl_rs:,.0f}\n"
-            f"📍 <b>Final Option Value:</b> ₹{exit_premium:.2f}\n"
-            f"🏁 <b>Action:</b> Full Target Met. Trade Closed!\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
+            f"🚀 <b>TARGET 2 (RUNNER) HIT! (+{pts_move:.1f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{spec.icon} <b>ASSET:</b> <b>{spec.name.upper()}</b>\n"
+            f"📑 <b>CONTRACT:</b> <code>{contract_name}</code> ({lots} Lot)\n"
+            f"{trade_id_tag}"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<blockquote>"
+            f"💰 <b>TOTAL NET PROFIT:</b> <b>+₹{pnl_rs:,.0f}</b>\n"
+            f"📍 <b>FINAL OPTION VALUE:</b> ₹{exit_premium:.2f}\n"
+            f"🏁 <b>ACTION:</b> Full Target Met. Trade 100% Closed!\n"
+            f"</blockquote>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp} | <b>Status:</b> COMPLETE\n"
+            f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
         )
     elif event_type == "TRAIL_COST_EXIT":
         msg = (
-            f"🛡️ <b>{comm_title} RUNNER EXITED AT COST / BREAKEVEN</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
-            f"💰 <b>Target 1 Profit Protected!</b>\n"
-            f"📍 <b>Exit Value:</b> ₹{exit_premium:.2f}\n"
-            f"🏁 <b>Action:</b> Trade Completed. Capital 100% Safe.\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
+            f"🛡️ <b>RUNNER EXITED AT BREAKEVEN / COST</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{spec.icon} <b>ASSET:</b> <b>{spec.name.upper()}</b>\n"
+            f"📑 <b>CONTRACT:</b> <code>{contract_name}</code> ({lots} Lot)\n"
+            f"{trade_id_tag}"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<blockquote>"
+            f"💰 <b>T1 PROFIT PROTECTED!</b>\n"
+            f"📍 <b>EXIT VALUE:</b> ₹{exit_premium:.2f} (Entry Cost)\n"
+            f"🏁 <b>ACTION:</b> Position Closed at Breakeven. Capital 100% Safe.\n"
+            f"</blockquote>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp} | <b>Status:</b> PROFIT PROTECTED\n"
+            f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
         )
     else:  # STOP_LOSS
         msg = (
-            f"🛑 <b>{comm_title} STOP LOSS HIT (-{abs(pts_move):.0f} PTS)</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
-            f"🛡️ <b>Max Risk Limited:</b> -₹{abs(pnl_rs):,.0f}\n"
-            f"📍 <b>Exit Value:</b> ₹{exit_premium:.2f}\n"
-            f"⏹️ <b>Action:</b> Position Closed. Capital Protected.\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⏰ <b>Time:</b> {timestamp}\n"
-            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
+            f"🛑 <b>STOP LOSS TRIGGERED (-{abs(pts_move):.1f} PTS)</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{spec.icon} <b>ASSET:</b> <b>{spec.name.upper()}</b>\n"
+            f"📑 <b>CONTRACT:</b> <code>{contract_name}</code> ({lots} Lot)\n"
+            f"{trade_id_tag}"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<blockquote>"
+            f"🛡️ <b>MAX RISK LIMITED:</b> <b>-₹{abs(pnl_rs):,.0f}</b>\n"
+            f"📍 <b>EXIT VALUE:</b> ₹{exit_premium:.2f}\n"
+            f"⏹️ <b>ACTION:</b> Trade Closed. 15-Min Cool-Down Active.\n"
+            f"</blockquote>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp} | <b>Status:</b> RISK CONTROLLED\n"
+            f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
         )
-
     return send_telegram_message(msg)
 
 
@@ -310,6 +326,7 @@ class AlertManager:
         timestamp: str = "",
         commodity_key: str = "CRUDEOIL",
         candle_time: str = "",
+        trade_id: str = "",
         force: bool = False,
     ) -> bool:
         """
@@ -360,7 +377,9 @@ class AlertManager:
                 risk_rs=risk_rs,
                 t1_profit_rs=t1_profit_rs,
                 lots=lots,
-                timestamp=timestamp
+                timestamp=timestamp,
+                commodity_key=clean_k,
+                trade_id=trade_id,
             )
             threading.Thread(target=send_telegram_message, args=(msg,), daemon=True).start()
 
