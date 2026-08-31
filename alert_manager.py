@@ -247,21 +247,36 @@ def send_tp_sl_alert(
 
 class AlertManager:
     """
-    Manages signal alerts with cooldown to prevent spam.
+    Manages signal alerts with per-asset cooldown to prevent duplicate/spam alerts.
     Thread-safe.
     """
 
     def __init__(self):
-        self._last_alert_time: float = 0.0
-        self._last_signal_signature: Optional[str] = None
+        self._last_alert_times: dict[str, float] = {}
+        self._last_signal_signatures: dict[str, str] = {}
+        self._last_candle_times: dict[str, str] = {}
         self._lock = threading.Lock()
 
-    def _is_cooldown_active(self, sig: str) -> bool:
-        # If signal signature changed (e.g. new contract or new direction), allow immediately
-        if sig != self._last_signal_signature:
-            return False
-        # If exact same signal signature, respect 10-minute cooldown
-        return (time.time() - self._last_alert_time) < 600
+    def _is_cooldown_active(self, comm_key: str, sig: str, candle_time: str = "") -> bool:
+        clean_k = comm_key.upper().strip()
+        last_t = self._last_alert_times.get(clean_k, 0.0)
+        last_sig = self._last_signal_signatures.get(clean_k, "")
+        last_candle = self._last_candle_times.get(clean_k, "")
+
+        # 1. Never fire more than 1 entry alert on the exact same candle bar
+        if candle_time and last_candle == candle_time:
+            return True
+
+        # 2. Strict 15-minute cooldown for the same asset to prevent rapid-fire duplicates
+        elapsed = time.time() - last_t
+        if elapsed < 900:  # 15 minutes
+            return True
+
+        # 3. If exact same signature, respect 30-minute cooldown
+        if sig == last_sig and elapsed < 1800:
+            return True
+
+        return False
 
     def trigger(
         self,
@@ -281,6 +296,8 @@ class AlertManager:
         t1_profit_rs: float = 2750.0,
         lots: int = 1,
         timestamp: str = "",
+        commodity_key: str = "CRUDEOIL",
+        candle_time: str = "",
         force: bool = False,
     ) -> bool:
         """
@@ -294,13 +311,16 @@ class AlertManager:
             print(f"[AlertManager] [PAUSED] Market Closed (Weekend/Night). Suppressed {signal_type} alert.")
             return False
 
-        sig_key = f"{strategy_name}_{signal_type}_{contract_name}"
+        clean_k = commodity_key.upper().strip()
+        sig_key = f"{clean_k}_{strategy_name}_{signal_type}_{contract_name}"
 
         with self._lock:
-            if not force and self._is_cooldown_active(sig_key):
+            if not force and self._is_cooldown_active(clean_k, sig_key, candle_time):
                 return False
-            self._last_alert_time = time.time()
-            self._last_signal_signature = sig_key
+            self._last_alert_times[clean_k] = time.time()
+            self._last_signal_signatures[clean_k] = sig_key
+            if candle_time:
+                self._last_candle_times[clean_k] = candle_time
 
         if not timestamp:
             timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
@@ -332,7 +352,7 @@ class AlertManager:
             )
             threading.Thread(target=send_telegram_message, args=(msg,), daemon=True).start()
 
-        print(f"[AlertManager] 🚀 AUTO-FIRED {signal_type} alert to Telegram at {timestamp} for {contract_name}")
+        print(f"[AlertManager] 🚀 AUTO-FIRED {signal_type} alert to Telegram at {timestamp} for {clean_k} ({contract_name})")
         return True
 
     def test_alert(self):
