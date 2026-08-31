@@ -1740,38 +1740,45 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 for s_item in asset_saved_strats:
                     s_id = s_item["id"]
                     is_currently_active = (curr_active_cfg.title == s_item["name"])
+                    border_c = "#10B981" if is_currently_active else "#E2E8F0"
+                    bg_c = "#F0FDF4" if is_currently_active else "#F8FAFC"
+                    active_badge = '<span style="color:#059669; font-weight:800; font-size:0.70rem; margin-left:6px;">(⚡ ACTIVE LIVE)</span>' if is_currently_active else ''
                     
-                    st.markdown(f"""
-                    <div style="background:#F8FAFC; border:1px solid {'#10B981' if is_currently_active else '#E2E8F0'}; border-radius:6px; padding:8px 12px; margin-bottom:6px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <b style="font-size:0.85rem; color:#0F172A;">{s_item['name']}</b>
-                                {' <span style="color:#059669; font-weight:800; font-size:0.75rem;">(⚡ ACTIVE LIVE SCANNER)</span>' if is_currently_active else ''}
-                                <div style="font-size:0.72rem; color:#64748B; font-family:'JetBrains Mono',monospace; margin-top:2px;">
-                                    Model: <b>{s_item['model']}</b> | SL: <b>{s_item['sl_pts']:.0f} pts</b> | RR: <b>1:{s_item['t1_rr']:.1f}</b> | Session: <b>{s_item['session'].split('(')[0].strip()}</b>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    row_html = (
+                        f'<div style="background:{bg_c}; border:1px solid {border_c}; border-radius:6px; padding:6px 10px; margin-bottom:4px;">'
+                        f'<div style="display:flex; justify-content:space-between; align-items:center;">'
+                        f'<div>'
+                        f'<b style="font-size:0.82rem; color:#0F172A;">{s_item["name"]}</b>{active_badge}'
+                        f'<div style="font-size:0.70rem; color:#64748B; font-family:\'JetBrains Mono\',monospace; margin-top:2px;">'
+                        f'Model: <b>{s_item["model"]}</b> | SL: <b>{s_item["sl_pts"]:.0f} pts</b> | RR: <b>1:{s_item["t1_rr"]:.1f}</b> | Session: <b>{s_item["session"].split("(")[0].strip()}</b>'
+                        f'</div>'
+                        f'</div>'
+                        f'</div>'
+                        f'</div>'
+                    )
                     
-                    col_act1, col_act2, col_act3 = st.columns([1.2, 1.8, 1.0])
-                    with col_act1:
+                    col_info, col_b1, col_b2, col_b3 = st.columns([5.2, 1.6, 1.4, 0.8])
+                    with col_info:
+                        st.markdown(row_html, unsafe_allow_html=True)
+                    with col_b1:
+                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
                         if not is_currently_active:
-                            if st.button("⚡ Deploy Live", key=f"btn_dep_{bt_comm_key}_{s_id}", use_container_width=True):
+                            if st.button("⚡ Deploy", key=f"btn_dep_{bt_comm_key}_{s_id}", use_container_width=True):
                                 deploy_strategy_to_asset(bt_comm_key, s_id)
                                 st.rerun()
                         else:
-                            st.button("✅ Active Live", disabled=True, key=f"btn_act_dis_{bt_comm_key}_{s_id}", use_container_width=True)
-                    with col_act2:
-                        with st.popover(f"✏️ Rename", use_container_width=True):
-                            new_name_val = st.text_input("New Strategy Name", value=s_item["name"], key=f"ren_inp_{bt_comm_key}_{s_id}")
-                            if st.button("Save Name", key=f"btn_save_ren_{bt_comm_key}_{s_id}", type="primary"):
+                            st.button("✅ Active", disabled=True, key=f"btn_act_dis_{bt_comm_key}_{s_id}", use_container_width=True)
+                    with col_b2:
+                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+                        with st.popover("✏️ Rename", use_container_width=True):
+                            new_name_val = st.text_input("New Name", value=s_item["name"], key=f"ren_inp_{bt_comm_key}_{s_id}")
+                            if st.button("Save", key=f"btn_save_ren_{bt_comm_key}_{s_id}", type="primary"):
                                 rename_custom_strategy(bt_comm_key, s_id, new_name_val)
                                 st.success("Renamed!")
                                 st.rerun()
-                    with col_act3:
-                        if st.button("🗑️ Delete", key=f"btn_del_{bt_comm_key}_{s_id}", use_container_width=True):
+                    with col_b3:
+                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+                        if st.button("🗑️", key=f"btn_del_{bt_comm_key}_{s_id}", use_container_width=True, help="Delete strategy"):
                             delete_custom_strategy(bt_comm_key, s_id)
                             st.rerun()
 
