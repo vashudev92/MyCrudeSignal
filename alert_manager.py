@@ -193,11 +193,21 @@ def send_tp_sl_alert(
     if not token or not chat_id:
         return False
 
+    clean_k = commodity_key.upper().strip()
+    try:
+        from strategy_presets import get_active_strategy_config
+        active_cfg = get_active_strategy_config(clean_k)
+        if not active_cfg.enabled:
+            print(f"[AlertManager] [MUTED] Suppressed TP/SL alert for {clean_k} because asset is disabled.")
+            return False
+    except Exception:
+        pass
+
     if not timestamp:
         timestamp = datetime.now().strftime("%H:%M:%S %d-%b-%Y")
 
     from commodity_registry import get_commodity_spec
-    spec = get_commodity_spec(commodity_key)
+    spec = get_commodity_spec(clean_k)
     trade_id_tag = f"🆔 <b>LINKED TRADE:</b> <code>{trade_id}</code>\n" if trade_id else ""
 
     if event_type == "TARGET1":
@@ -335,12 +345,18 @@ class AlertManager:
         if signal_type == "NEUTRAL":
             return False
 
-        # ⛔ STRICT MARKET HOURS GUARD: Never alert on weekends or outside market hours
-        if not force and not is_market_open():
-            print(f"[AlertManager] [PAUSED] Market Closed (Weekend/Night). Suppressed {signal_type} alert.")
-            return False
-
         clean_k = commodity_key.upper().strip()
+
+        # ⛔ STRICT ACTIVE ASSET TOGGLE GUARD: Muted assets will NEVER send Telegram alerts
+        try:
+            from strategy_presets import get_active_strategy_config
+            active_cfg = get_active_strategy_config(clean_k)
+            if not force and not active_cfg.enabled:
+                print(f"[AlertManager] [MUTED] Alert suppressed for {clean_k} because asset is disabled in settings.")
+                return False
+        except Exception:
+            pass
+
         sig_key = f"{clean_k}_{strategy_name}_{signal_type}_{contract_name}"
 
         with self._lock:
