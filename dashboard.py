@@ -864,25 +864,7 @@ def main():
                         save_active_strategy_config(cfg_i)
                         st.rerun()
 
-        # ── DYNAMIC SAVED STRATEGY PRESETS FOR ACTIVE ASSET ───────────────
-        active_saved_strats = get_saved_strategies_for_asset(comm_key)
         active_cfg = get_active_strategy_config(comm_key)
-
-        st.markdown(f'<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ SAVED STRATEGIES FOR {spec.name.upper()} ({len(active_saved_strats)} AVAILABLE)</div>', unsafe_allow_html=True)
-        
-        n_btns = len(active_saved_strats)
-        cols_strat = st.columns(min(n_btns, 4))
-        for s_idx, s_item in enumerate(active_saved_strats):
-            col_target = cols_strat[s_idx % len(cols_strat)]
-            with col_target:
-                is_active = (active_cfg.title == s_item["name"])
-                btn_style = "primary" if is_active else "secondary"
-                btn_label = f"{'⚡ ' if is_active else ''}{s_item['name']}\n(SL: {s_item['sl_pts']:.0f}p | 1:{s_item['t1_rr']:.1f} RR)"
-                if st.button(btn_label, type=btn_style, use_container_width=True, key=f"btn_quick_strat_{comm_key}_{s_item['id']}"):
-                    deploy_strategy_to_asset(comm_key, s_item["id"])
-                    st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
 
         # ── 4-Condition Real-Time Indicator Alignment Diagnostic Strip ────────
         st_color = "#059669" if indicators.st_fast_dir == 1 else "#DC2626"
