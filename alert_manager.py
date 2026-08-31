@@ -352,7 +352,7 @@ class AlertManager:
             )
             threading.Thread(target=send_telegram_message, args=(msg,), daemon=True).start()
 
-        print(f"[AlertManager] 🚀 AUTO-FIRED {signal_type} alert to Telegram at {timestamp} for {clean_k} ({contract_name})")
+        print(f"[AlertManager] [AUTO-FIRED] {signal_type} alert to Telegram at {timestamp} for {clean_k} ({contract_name})")
         return True
 
     def test_alert(self):
