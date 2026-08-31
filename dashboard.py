@@ -803,6 +803,12 @@ def main():
 
         with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)", expanded=False):
             st.caption("Enable or mute alerts for any asset, and choose which saved strategy to deploy for 24/7 scanning.")
+            
+            def _handle_strat_deploy(asset_k, state_k):
+                chosen_id = st.session_state.get(state_k)
+                if chosen_id:
+                    deploy_strategy_to_asset(asset_k, chosen_id)
+
             st.markdown("**🛢️ MCX Commodities**")
             col_mcx = st.columns(4)
             mcx_keys = ["CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"]
@@ -812,19 +818,24 @@ def main():
                 strats_m = get_saved_strategies_for_asset(k_m)
                 with col_mcx[idx_m]:
                     st.markdown(f"**{sp_m.icon} {sp_m.name}**", unsafe_allow_html=True)
-                    strat_names = [s["name"] for s in strats_m]
-                    curr_idx = next((i for i, s in enumerate(strats_m) if s.get("name") == cfg_m.title), 0)
-                    sel_s = st.selectbox(
+                    strat_ids = [s["id"] for s in strats_m]
+                    curr_strat_id = next((s["id"] for s in strats_m if s.get("name") == cfg_m.title), strat_ids[0])
+                    
+                    st_key = f"mgr_sel_strat_{k_m}"
+                    if st_key not in st.session_state or st.session_state[st_key] not in strat_ids:
+                        st.session_state[st_key] = curr_strat_id
+                    elif any(s["id"] == curr_strat_id and s["name"] == cfg_m.title for s in strats_m):
+                        st.session_state[st_key] = curr_strat_id
+
+                    st.selectbox(
                         "Active Strategy",
-                        range(len(strat_names)),
-                        format_func=lambda i: strat_names[i],
-                        index=curr_idx,
-                        key=f"mgr_sel_strat_{k_m}",
+                        options=strat_ids,
+                        format_func=lambda sid: next((s["name"] for s in strats_m if s["id"] == sid), sid),
+                        key=st_key,
+                        on_change=_handle_strat_deploy,
+                        args=(k_m, st_key),
                         label_visibility="collapsed"
                     )
-                    if strat_names[sel_s] != cfg_m.title:
-                        deploy_strategy_to_asset(k_m, strats_m[sel_s]["id"])
-                        st.rerun()
 
                     st.markdown(f"<div style='font-size:0.70rem; color:#475569; margin-top:2px;'>SL: {cfg_m.sl_pts:.0f}p | 1:{cfg_m.t1_rr:.1f} RR</div>", unsafe_allow_html=True)
                     tg_val = st.toggle("Live Alerts", value=cfg_m.enabled, key=f"mgr_tg_{k_m}")
@@ -843,19 +854,24 @@ def main():
                 strats_i = get_saved_strategies_for_asset(k_i)
                 with col_idx[idx_i]:
                     st.markdown(f"**{sp_i.icon} {sp_i.name}**", unsafe_allow_html=True)
-                    strat_names_i = [s["name"] for s in strats_i]
-                    curr_idx_i = next((i for i, s in enumerate(strats_i) if s.get("name") == cfg_i.title), 0)
-                    sel_s_i = st.selectbox(
+                    strat_ids_i = [s["id"] for s in strats_i]
+                    curr_strat_id_i = next((s["id"] for s in strats_i if s.get("name") == cfg_i.title), strat_ids_i[0])
+                    
+                    st_key_i = f"mgr_sel_strat_{k_i}"
+                    if st_key_i not in st.session_state or st.session_state[st_key_i] not in strat_ids_i:
+                        st.session_state[st_key_i] = curr_strat_id_i
+                    elif any(s["id"] == curr_strat_id_i and s["name"] == cfg_i.title for s in strats_i):
+                        st.session_state[st_key_i] = curr_strat_id_i
+
+                    st.selectbox(
                         "Active Strategy",
-                        range(len(strat_names_i)),
-                        format_func=lambda i: strat_names_i[i],
-                        index=curr_idx_i,
-                        key=f"mgr_sel_strat_{k_i}",
+                        options=strat_ids_i,
+                        format_func=lambda sid: next((s["name"] for s in strats_i if s["id"] == sid), sid),
+                        key=st_key_i,
+                        on_change=_handle_strat_deploy,
+                        args=(k_i, st_key_i),
                         label_visibility="collapsed"
                     )
-                    if strat_names_i[sel_s_i] != cfg_i.title:
-                        deploy_strategy_to_asset(k_i, strats_i[sel_s_i]["id"])
-                        st.rerun()
 
                     st.markdown(f"<div style='font-size:0.70rem; color:#475569; margin-top:2px;'>SL: {cfg_i.sl_pts:.0f}p | 1:{cfg_i.t1_rr:.1f} RR</div>", unsafe_allow_html=True)
                     tg_val = st.toggle("Live Alerts", value=cfg_i.enabled, key=f"mgr_tg_{k_i}")
@@ -1676,7 +1692,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             with save_c2:
                 st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
                 if st.button(f"🚀 Save & Deploy Live", type="primary", use_container_width=True, key=f"btn_save_deploy_{bt_comm_key}"):
-                    save_custom_strategy(
+                    new_s = save_custom_strategy(
                         commodity_key=bt_comm_key,
                         name=strat_custom_name,
                         model=strategy_choice,
@@ -1690,12 +1706,13 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                         badge=f"+{report.win_rate:.0f}% WR | 1:{t1_rr_input:.1f} RR",
                         set_active=True
                     )
+                    st.session_state[f"mgr_sel_strat_{bt_comm_key}"] = new_s["id"]
                     st.success(f"✅ Strategy '{strat_custom_name}' saved to {bt_spec.name} and deployed for 24/7 Live Scanning!")
                     st.rerun()
             with save_c3:
                 st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
                 if st.button(f"📁 Save to Library Only", type="secondary", use_container_width=True, key=f"btn_save_lib_only_{bt_comm_key}"):
-                    save_custom_strategy(
+                    new_s = save_custom_strategy(
                         commodity_key=bt_comm_key,
                         name=strat_custom_name,
                         model=strategy_choice,
