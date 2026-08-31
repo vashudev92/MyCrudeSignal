@@ -1390,12 +1390,11 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             if bt_spec.category == "INDEX":
                 avail_sessions = [
                     "⚡ Full Equity Session (09:15 - 15:30 IST)",
-                    "🌅 Morning Opening Drive (09:15 - 11:30 IST)",
-                    "🌅 Full MCX Session (09:00 - 23:30 IST)"
+                    "🌅 Morning Opening Drive (09:15 - 11:30 IST)"
                 ]
             else:
                 avail_sessions = [
-                    "🔥 US Prime Session (16:30 - 22:30 IST)",
+                    "🔥 US High-Peak / Prime Session (16:30 - 22:30 IST)",
                     "🌅 Full MCX Session (09:00 - 23:30 IST)"
                 ]
             session_choice = st.selectbox(

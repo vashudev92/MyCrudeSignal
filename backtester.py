@@ -404,8 +404,12 @@ class CrudeBacktester:
                 if active_trade is not None or day_trades_count >= max_daily_trades or i >= len(day_df) - 1:
                     continue
 
-                is_us_prime = (16 <= current_time.hour <= 22)
-                if "US Prime" in session_filter and not is_us_prime:
+                is_us_prime = (16 <= current_time.hour <= 22 or (current_time.hour == 23 and current_time.minute <= 30))
+                is_morning_drive = ((current_time.hour == 9 and current_time.minute >= 15) or current_time.hour == 10 or (current_time.hour == 11 and current_time.minute <= 30))
+
+                if ("US Prime" in session_filter or "US High-Peak" in session_filter) and not is_us_prime:
+                    continue
+                if "Morning Opening Drive" in session_filter and not is_morning_drive:
                     continue
 
                 # 🛑 CHOP / CONSOLIDATION FILTER: Skip entering if market is flat/sideways
