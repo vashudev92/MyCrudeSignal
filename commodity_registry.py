@@ -260,11 +260,30 @@ COMMODITY_REGISTRY: Dict[str, CommoditySpec] = {
 
 
 def get_commodity_spec(comm_key: str = "CRUDEOIL") -> CommoditySpec:
-    """Retrieve asset specification with fallback to CRUDEOIL."""
+    """Retrieve asset specification with exact match or alias fallback."""
     clean_key = comm_key.upper().strip()
+    if clean_key in COMMODITY_REGISTRY:
+        return COMMODITY_REGISTRY[clean_key]
+
+    alias_map = {
+        "BANK_NIFTY": "BANKNIFTY",
+        "NIFTY_BANK": "BANKNIFTY",
+        "BANK": "BANKNIFTY",
+        "FIN_NIFTY": "FINNIFTY",
+        "MIDCAP": "MIDCPNIFTY",
+        "MIDCAPNIFTY": "MIDCPNIFTY",
+        "CRUDE": "CRUDEOIL",
+        "NATGAS": "NATURALGAS",
+        "GOLDM": "GOLD",
+        "SILVERM": "SILVER",
+    }
+    if clean_key in alias_map:
+        return COMMODITY_REGISTRY[alias_map[clean_key]]
+
     for k, spec in COMMODITY_REGISTRY.items():
-        if k == clean_key or k in clean_key or clean_key in k:
+        if k == clean_key or spec.symbol_keyword == clean_key:
             return spec
+
     return COMMODITY_REGISTRY["CRUDEOIL"]
 
 
