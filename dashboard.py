@@ -670,21 +670,30 @@ def main():
     if "selected_comm_key" not in st.session_state:
         st.session_state["selected_comm_key"] = "CRUDEOIL"
 
+    def _handle_header_pill_change():
+        chosen_lbl = st.session_state.get("commodity_header_selector")
+        for k, v in all_asset_pills.items():
+            if v == chosen_lbl:
+                st.session_state["selected_comm_key"] = k
+                break
+
+    curr_comm = st.session_state["selected_comm_key"]
+    curr_pill_lbl = all_asset_pills.get(curr_comm, "🛢️ CRUDE OIL")
+    if "commodity_header_selector" not in st.session_state or st.session_state["commodity_header_selector"] not in all_asset_pills.values():
+        st.session_state["commodity_header_selector"] = curr_pill_lbl
+    elif all_asset_pills.get(curr_comm) != st.session_state["commodity_header_selector"]:
+        st.session_state["commodity_header_selector"] = curr_pill_lbl
+
     col_nav1, col_nav2 = st.columns([3.2, 0.8])
     with col_nav1:
-        current_idx = list(all_asset_pills.keys()).index(st.session_state["selected_comm_key"]) if st.session_state["selected_comm_key"] in all_asset_pills else 0
-        selected_pill_lbl = st.radio(
+        st.radio(
             "Select Active Asset",
             list(all_asset_pills.values()),
-            index=current_idx,
+            key="commodity_header_selector",
+            on_change=_handle_header_pill_change,
             horizontal=True,
-            label_visibility="collapsed",
-            key="commodity_header_selector"
+            label_visibility="collapsed"
         )
-        for k, v in all_asset_pills.items():
-            if v == selected_pill_lbl and st.session_state["selected_comm_key"] != k:
-                st.session_state["selected_comm_key"] = k
-                st.rerun()
 
     comm_key = st.session_state["selected_comm_key"]
     spec = get_commodity_spec(comm_key)
@@ -1460,17 +1469,33 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             "🏛️ BSE Sensex (10 Qty)": "SENSEX",
             "⚡ NSE Midcap Nifty (50 Qty)": "MIDCPNIFTY",
         }
+        key_to_bt_lbl = {v: k for k, v in comm_options_map.items()}
+
+        def _handle_bt_asset_change():
+            chosen_lbl = st.session_state.get("bt_commodity_select")
+            if chosen_lbl in comm_options_map:
+                new_k = comm_options_map[chosen_lbl]
+                st.session_state["selected_comm_key"] = new_k
+                if new_k in all_asset_pills:
+                    st.session_state["commodity_header_selector"] = all_asset_pills[new_k]
+
+        expected_bt_lbl = key_to_bt_lbl.get(comm_key, list(comm_options_map.keys())[0])
+        if "bt_commodity_select" not in st.session_state or st.session_state.get("_last_synced_bt_k") != comm_key:
+            st.session_state["bt_commodity_select"] = expected_bt_lbl
+            st.session_state["_last_synced_bt_k"] = comm_key
+        elif st.session_state["bt_commodity_select"] != expected_bt_lbl and st.session_state.get("_last_synced_bt_k") != comm_key:
+            st.session_state["bt_commodity_select"] = expected_bt_lbl
+            st.session_state["_last_synced_bt_k"] = comm_key
 
         row0_c1, row0_c2 = st.columns([1.6, 2.4])
         with row0_c1:
-            bt_idx = list(comm_options_map.values()).index(comm_key) if comm_key in comm_options_map.values() else 0
             bt_comm_label = st.selectbox(
                 "Asset to Backtest (MCX / NSE / BSE)",
                 list(comm_options_map.keys()),
-                index=bt_idx,
-                key="bt_commodity_select"
+                key="bt_commodity_select",
+                on_change=_handle_bt_asset_change
             )
-            bt_comm_key = comm_options_map[bt_comm_label]
+            bt_comm_key = comm_options_map.get(bt_comm_label, comm_key)
             bt_spec = get_commodity_spec(bt_comm_key)
         with row0_c2:
             st.markdown(f"""
