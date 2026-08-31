@@ -182,7 +182,19 @@ def _scanner_loop():
                                     )
                                     tr["t1_alerted"] = True
 
-                                # 3. Stop Loss Hit
+                                # 3. Trailing SL to Cost / Breakeven (Protects Runner After Target 1)
+                                elif tr.get("t1_alerted", False) and "Lock Cost" in cfg.trailing_mode and pts_move <= 0:
+                                    send_tp_sl_alert(
+                                        event_type="TRAIL_COST_EXIT",
+                                        contract_name=tr["contract"],
+                                        pts_move=0.0,
+                                        pnl_rs=0.0,
+                                        exit_premium=tr["entry_premium"],
+                                        lots=tr["lots"]
+                                    )
+                                    _active_trade_trackers[comm_key] = None
+
+                                # 4. Initial Stop Loss Hit
                                 elif pts_move <= -tr["sl_pts"]:
                                     send_tp_sl_alert(
                                         event_type="STOP_LOSS",

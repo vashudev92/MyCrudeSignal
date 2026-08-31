@@ -227,6 +227,18 @@ def send_tp_sl_alert(
             f"⏰ <b>Time:</b> {timestamp}\n"
             f"⚡ <i>Multi-Commodity Pro Terminal</i>"
         )
+    elif event_type == "TRAIL_COST_EXIT":
+        msg = (
+            f"🛡️ <b>{comm_title} RUNNER EXITED AT COST / BREAKEVEN</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{comm_icon} <b>Contract:</b> {contract_name} ({lots} Lot)\n"
+            f"💰 <b>Target 1 Profit Protected!</b>\n"
+            f"📍 <b>Exit Value:</b> ₹{exit_premium:.2f}\n"
+            f"🏁 <b>Action:</b> Trade Completed. Capital 100% Safe.\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏰ <b>Time:</b> {timestamp}\n"
+            f"⚡ <i>Multi-Commodity Pro Terminal</i>"
+        )
     else:  # STOP_LOSS
         msg = (
             f"🛑 <b>{comm_title} STOP LOSS HIT (-{abs(pts_move):.0f} PTS)</b>\n"
