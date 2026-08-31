@@ -145,130 +145,90 @@ class SignalEngine:
         buy_conditions: List[str] = []
         sell_conditions: List[str] = []
 
-        # ── 1. Evaluate Selected Model ─────────────────────────────────────────
-        if "RSI" in strategy_model or "Confluence" in strategy_model:
-            # 🎯 RSI + MACD Confluence Model
-            if indicators.macd_line > indicators.macd_signal:
-                buy_conditions.append("✅ MACD: Bullish crossover (Line > Signal)")
-            if 50.0 <= indicators.rsi <= 70.0:
-                buy_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in high-velocity expansion zone")
-            if price > ema20:
-                buy_conditions.append(f"✅ Trend: Price above 20 EMA (₹{ema20:.0f})")
+        # ── 1. Evaluate Selected Model with Strict Trigger Rules ──────────────
+        candle_open = indicators.open if hasattr(indicators, "open") and indicators.open > 0 else ema20
+        is_bull_candle = price >= candle_open
+        is_bear_candle = price <= candle_open
 
-            if indicators.macd_line < indicators.macd_signal:
-                sell_conditions.append("✅ MACD: Bearish crossover (Line < Signal)")
-            if 30.0 <= indicators.rsi <= 50.0:
+        if "RSI" in strategy_model or "Confluence" in strategy_model:
+            # 🎯 RSI + MACD Confluence Model (Exact Backtest Parity)
+            if indicators.macd_histogram > 0 and (50.0 <= indicators.rsi <= 70.0) and price > ema20 and is_bull_candle:
+                buy_conditions.append("✅ MACD: Bullish expansion (Histogram > 0)")
+                buy_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in high-velocity expansion zone")
+                buy_conditions.append(f"✅ Trend: Bullish candle above 20 EMA (₹{ema20:.0f})")
+
+            if indicators.macd_histogram < 0 and (30.0 <= indicators.rsi <= 50.0) and price < ema20 and is_bear_candle:
+                sell_conditions.append("✅ MACD: Bearish expansion (Histogram < 0)")
                 sell_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in downward momentum zone")
-            if price < ema20:
-                sell_conditions.append(f"✅ Trend: Price below 20 EMA (₹{ema20:.0f})")
+                sell_conditions.append(f"✅ Trend: Bearish candle below 20 EMA (₹{ema20:.0f})")
 
         elif "ICT" in strategy_model or "FVG" in strategy_model:
             # 💎 ICT & Fair Value Gap (FVG) + Liquidity Sweep Model
-            if indicators.fvg_type == "BULLISH_FVG" or "BULLISH" in indicators.liquidity_sweep:
-                buy_conditions.append(f"✅ Smart Money: Bullish FVG Zone (₹{indicators.fvg_bottom:.0f} - ₹{indicators.fvg_top:.0f})")
-            if price >= ema20:
-                buy_conditions.append(f"✅ Market Structure Shift (MSS): Above 20 EMA (₹{ema20:.0f})")
-            if indicators.rsi >= 46.0:
-                buy_conditions.append(f"✅ Institutional Expansion: RSI {indicators.rsi:.0f} >= 46")
+            if (indicators.fvg_type == "BULLISH_FVG" or "BULLISH" in indicators.liquidity_sweep or price > ema20) and is_bull_candle and indicators.rsi >= 48.0:
+                buy_conditions.append(f"✅ Smart Money: Bullish FVG Zone / Sweep Confirmation")
+                buy_conditions.append(f"✅ Market Structure: Above 20 EMA (₹{ema20:.0f})")
+                buy_conditions.append(f"✅ Institutional Expansion: RSI {indicators.rsi:.0f} >= 48")
 
-            if indicators.fvg_type == "BEARISH_FVG" or "BEARISH" in indicators.liquidity_sweep:
-                sell_conditions.append(f"✅ Smart Money: Bearish FVG Zone (₹{indicators.fvg_bottom:.0f} - ₹{indicators.fvg_top:.0f})")
-            if price <= ema20:
-                sell_conditions.append(f"✅ Market Structure Shift (MSS): Below 20 EMA (₹{ema20:.0f})")
-            if indicators.rsi <= 54.0:
-                sell_conditions.append(f"✅ Institutional Expansion: RSI {indicators.rsi:.0f} <= 54")
+            if (indicators.fvg_type == "BEARISH_FVG" or "BEARISH" in indicators.liquidity_sweep or price < ema20) and is_bear_candle and indicators.rsi <= 52.0:
+                sell_conditions.append(f"✅ Smart Money: Bearish FVG Zone / Sweep Confirmation")
+                sell_conditions.append(f"✅ Market Structure: Below 20 EMA (₹{ema20:.0f})")
+                sell_conditions.append(f"✅ Institutional Expansion: RSI {indicators.rsi:.0f} <= 52")
 
         elif "News" in strategy_model or "Inventory" in strategy_model:
             # 📰 High-Impact Energy News & Inventory Breakout
-            if news_flag == "BULLISH":
+            if news_flag == "BULLISH" and price > ema20 and indicators.rsi >= 50.0 and is_bull_candle:
                 buy_conditions.append("📰 EIA / Energy Catalyst: Strong Bullish News Sentiment")
-            if price > indicators.ema9 and price > ema20:
-                buy_conditions.append("✅ Volatility Expansion: Price leading above 9 & 20 EMA")
-            if indicators.rsi >= 50.0:
-                buy_conditions.append(f"✅ Momentum Surge: RSI {indicators.rsi:.0f} > 50")
+                buy_conditions.append("✅ Volatility Expansion: Price leading above 20 EMA")
+                buy_conditions.append(f"✅ Momentum Surge: RSI {indicators.rsi:.0f} >= 50")
 
-            if news_flag == "BEARISH":
+            if news_flag == "BEARISH" and price < ema20 and indicators.rsi <= 50.0 and is_bear_candle:
                 sell_conditions.append("📰 EIA / Energy Catalyst: Strong Bearish News Sentiment")
-            if price < indicators.ema9 and price < ema20:
-                sell_conditions.append("✅ Volatility Breakdown: Price leading below 9 & 20 EMA")
-            if indicators.rsi <= 50.0:
-                sell_conditions.append(f"✅ Momentum Dump: RSI {indicators.rsi:.0f} < 50")
+                sell_conditions.append("✅ Volatility Breakdown: Price leading below 20 EMA")
+                sell_conditions.append(f"✅ Momentum Dump: RSI {indicators.rsi:.0f} <= 50")
 
         elif "Pullback" in strategy_model:
             # 20 EMA / Pivot Pullback Model
             dist_to_ema = abs(price - ema20)
             is_near_ema20 = dist_to_ema <= 15.0 or (indicators.day_low <= ema20 <= price)
 
-            if price >= pp or price >= ema50:
-                buy_conditions.append(f"✅ Trend Bias: Bullish (Price ₹{price:.0f} >= PP ₹{pp:.0f})")
-            if is_near_ema20:
-                buy_conditions.append(f"✅ Pullback Zone: Price touching 20 EMA (₹{ema20:.0f})")
-            if indicators.close >= indicators.ema9:
-                buy_conditions.append("✅ Momentum: Green reversal candle above 9 EMA")
-            if 40.0 <= indicators.rsi <= 70.0:
-                buy_conditions.append(f"✅ RSI ({indicators.rsi:.0f}) in active expansion zone")
+            if price >= ema50 and is_near_ema20 and is_bull_candle and (46.0 <= indicators.rsi <= 68.0):
+                buy_conditions.append(f"✅ Trend Bias: Bullish above 50 EMA (₹{ema50:.0f})")
+                buy_conditions.append(f"✅ Pullback Zone: Bounce off 20 EMA (₹{ema20:.0f})")
+                buy_conditions.append(f"✅ Reversal Momentum: Green candle (RSI {indicators.rsi:.0f})")
 
-            if price <= pp or price <= ema50:
-                sell_conditions.append(f"✅ Trend Bias: Bearish (Price ₹{price:.0f} <= PP ₹{pp:.0f})")
-            if is_near_ema20:
-                sell_conditions.append(f"✅ Pullback Zone: Price rallying to 20 EMA (₹{ema20:.0f})")
-            if indicators.close <= indicators.ema9:
-                sell_conditions.append("✅ Momentum: Red reversal candle below 9 EMA")
-            if 30.0 <= indicators.rsi <= 60.0:
-                sell_conditions.append(f"✅ RSI ({indicators.rsi:.0f}) in active bearish expansion zone")
+            if price <= ema50 and is_near_ema20 and is_bear_candle and (32.0 <= indicators.rsi <= 54.0):
+                sell_conditions.append(f"✅ Trend Bias: Bearish below 50 EMA (₹{ema50:.0f})")
+                sell_conditions.append(f"✅ Pullback Zone: Rejection off 20 EMA (₹{ema20:.0f})")
+                sell_conditions.append(f"✅ Reversal Momentum: Red candle (RSI {indicators.rsi:.0f})")
 
         elif "Pivot" in strategy_model:
             # Standard Pivot Breakout Model
-            if price > pp:
+            if price > pp and price > ema20 and is_bull_candle and indicators.rsi >= 50.0:
                 buy_conditions.append(f"✅ Pivot Breakout: Price (₹{price:.0f}) > PP (₹{pp:.0f})")
-            if price > ema20:
                 buy_conditions.append(f"✅ Momentum: Above 20 EMA (₹{ema20:.0f})")
-            if indicators.rsi >= 48.0:
-                buy_conditions.append(f"✅ RSI Strength: {indicators.rsi:.0f} >= 48 (Bullish)")
+                buy_conditions.append(f"✅ RSI Strength: {indicators.rsi:.0f} >= 50 (Bullish)")
 
-            if price < pp:
+            if price < pp and price < ema20 and is_bear_candle and indicators.rsi <= 50.0:
                 sell_conditions.append(f"✅ Pivot Breakdown: Price (₹{price:.0f}) < PP (₹{pp:.0f})")
-            if price < ema20:
                 sell_conditions.append(f"✅ Momentum: Below 20 EMA (₹{ema20:.0f})")
-            if indicators.rsi <= 52.0:
-                sell_conditions.append(f"✅ RSI Weakness: {indicators.rsi:.0f} <= 52 (Bearish)")
-
-        elif "RSI" in strategy_model:
-            # RSI + MACD Confluence Model
-            if indicators.macd_line > indicators.macd_signal:
-                buy_conditions.append("✅ MACD: Bullish crossover (Line > Signal)")
-            if 50.0 <= indicators.rsi <= 70.0:
-                buy_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in high-velocity expansion zone")
-            if price > ema20:
-                buy_conditions.append(f"✅ Trend: Price above 20 EMA (₹{ema20:.0f})")
-
-            if indicators.macd_line < indicators.macd_signal:
-                sell_conditions.append("✅ MACD: Bearish crossover (Line < Signal)")
-            if 30.0 <= indicators.rsi <= 50.0:
-                sell_conditions.append(f"✅ RSI: {indicators.rsi:.0f} in downward momentum zone")
-            if price < ema20:
-                sell_conditions.append(f"✅ Trend: Price below 20 EMA (₹{ema20:.0f})")
+                sell_conditions.append(f"✅ RSI Weakness: {indicators.rsi:.0f} <= 50 (Bearish)")
 
         else:
             # Supertrend & 20 EMA Momentum
-            if price > ema50 and price > ema20:
-                buy_conditions.append(f"✅ Trend Alignment: Price above 20 EMA (₹{ema20:.0f}) & 50 EMA (₹{ema50:.0f})")
-            if indicators.close >= indicators.ema9:
-                buy_conditions.append("✅ Bullish Price Action: Candle closing above 9 EMA")
-            if indicators.rsi >= 45.0:
+            if indicators.st_fast_dir == 1 and price > ema20 and ema20 >= ema50 and is_bull_candle:
+                buy_conditions.append(f"✅ Supertrend: Bullish (₹{indicators.st_fast:.0f})")
+                buy_conditions.append(f"✅ Trend Alignment: 20 EMA (₹{ema20:.0f}) >= 50 EMA")
                 buy_conditions.append(f"✅ RSI Momentum: {indicators.rsi:.0f} supporting upward drive")
 
-            if price < ema50 and price < ema20:
-                sell_conditions.append(f"✅ Trend Alignment: Price below 20 EMA (₹{ema20:.0f}) & 50 EMA (₹{ema50:.0f})")
-            if indicators.close <= indicators.ema9:
-                sell_conditions.append("✅ Bearish Price Action: Candle closing below 9 EMA")
-            if indicators.rsi <= 55.0:
+            if indicators.st_fast_dir == -1 and price < ema20 and ema20 <= ema50 and is_bear_candle:
+                sell_conditions.append(f"✅ Supertrend: Bearish (₹{indicators.st_fast:.0f})")
+                sell_conditions.append(f"✅ Trend Alignment: 20 EMA (₹{ema20:.0f}) <= 50 EMA")
                 sell_conditions.append(f"✅ RSI Weakness: {indicators.rsi:.0f} supporting downward drive")
 
         # Add news sentiment factor
-        if news_flag == "BULLISH":
+        if news_flag == "BULLISH" and buy_conditions:
             buy_conditions.append("📰 Energy News: Bullish sentiment catalyst")
-        elif news_flag == "BEARISH":
+        elif news_flag == "BEARISH" and sell_conditions:
             sell_conditions.append("📰 Energy News: Bearish sentiment catalyst")
 
         buy_score = len(buy_conditions)

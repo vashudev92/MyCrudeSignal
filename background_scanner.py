@@ -129,21 +129,6 @@ def _scanner_loop():
                     if not is_asset_market_open(spec):
                         continue
 
-                    # 3. Check session window filter for this asset
-                    if ("US Prime" in cfg.session_filter or "US High-Peak" in cfg.session_filter) and not is_us_prime:
-                        continue
-                    if "Morning Opening Drive" in cfg.session_filter and not is_morning_drive:
-                        continue
-
-                    # 4. Check persistent daily trade count limit from database
-                    db_trades_today = get_daily_trade_count(comm_key, today_str)
-                    if db_trades_today >= cfg.max_daily_trades:
-                        continue
-
-                    # 5. Check post-loss cooling period (15 minutes after Stop Loss)
-                    if time.time() < _post_loss_cooldowns.get(comm_key, 0.0):
-                        continue
-
                     try:
                         instrument_key = get_active_crude_instrument_key(token, commodity_key=comm_key)
                         df_candles = client.get_intraday_candles(instrument_key, interval="30minute")
@@ -297,6 +282,21 @@ def _scanner_loop():
 
                             # ── B. Scan for New Trade Entry Signal (If No Active Trade) ──
                             else:
+                                # 1. Strict Session Window Filter
+                                if ("US Prime" in cfg.session_filter or "US High-Peak" in cfg.session_filter) and not is_us_prime:
+                                    continue
+                                if "Morning Opening Drive" in cfg.session_filter and not is_morning_drive:
+                                    continue
+
+                                # 2. Strict Persistent Daily Trade Hard Cap
+                                db_trades_today = get_daily_trade_count(comm_key, today_str)
+                                if db_trades_today >= cfg.max_daily_trades:
+                                    continue
+
+                                # 3. Post-Loss / Post-Trade Cooling Period (15 Minutes)
+                                if time.time() < _post_loss_cooldowns.get(comm_key, 0.0):
+                                    continue
+
                                 signal = engine.generate_signal(
                                     indicators=indicators,
                                     strategy_model=cfg.strategy_model,

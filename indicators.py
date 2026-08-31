@@ -71,6 +71,10 @@ class PivotLevels:
 class IndicatorValues:
     """Snapshot of all indicator values at the latest candle."""
     close: float = 0.0
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    atr: float = 20.0
     # EMAs
     ema9: float = 0.0
     ema21: float = 0.0
@@ -382,8 +386,17 @@ def compute_indicators(df: pd.DataFrame, pivot: PivotLevels) -> IndicatorValues:
     macd_bearish_cross = (prev_hist > 0) and (latest_hist <= 0)
     is_trending = latest_adx >= ADX_CHOP_THRESHOLD
 
+    latest_open = float(df["open"].iloc[-1]) if "open" in df.columns else latest_close
+    latest_high = float(df["high"].iloc[-1]) if "high" in df.columns else latest_close
+    latest_low = float(df["low"].iloc[-1]) if "low" in df.columns else latest_close
+    latest_atr = float(atr_series.iloc[-1]) if ("atr_series" in locals() and not atr_series.empty) else 20.0
+
     return IndicatorValues(
         close=latest_close,
+        open=latest_open,
+        high=latest_high,
+        low=latest_low,
+        atr=latest_atr,
         ema9=round(latest_ema9, 2),
         ema21=round(latest_ema21, 2),
         ema50=round(latest_ema50, 2),
