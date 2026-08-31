@@ -813,10 +813,10 @@ def main():
         with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)", expanded=False):
             st.caption("Enable or mute alerts for any asset, and choose which saved strategy to deploy for 24/7 scanning.")
             
-            def _handle_strat_deploy(asset_k, state_k):
-                chosen_id = st.session_state.get(state_k)
-                if chosen_id:
-                    deploy_strategy_to_asset(asset_k, chosen_id)
+            def _handle_strat_deploy(asset_k):
+                sel_id = st.session_state.get(f"mgr_sel_strat_{asset_k}")
+                if sel_id:
+                    deploy_strategy_to_asset(asset_k, sel_id)
 
             st.markdown("**🛢️ MCX Commodities**")
             col_mcx = st.columns(4)
@@ -829,20 +829,16 @@ def main():
                     st.markdown(f"**{sp_m.icon} {sp_m.name}**", unsafe_allow_html=True)
                     strat_ids = [s["id"] for s in strats_m]
                     curr_strat_id = next((s["id"] for s in strats_m if s.get("name") == cfg_m.title), strat_ids[0])
-                    
-                    st_key = f"mgr_sel_strat_{k_m}"
-                    if st_key not in st.session_state or st.session_state[st_key] not in strat_ids:
-                        st.session_state[st_key] = curr_strat_id
-                    elif any(s["id"] == curr_strat_id and s["name"] == cfg_m.title for s in strats_m):
-                        st.session_state[st_key] = curr_strat_id
+                    curr_idx = strat_ids.index(curr_strat_id) if curr_strat_id in strat_ids else 0
 
                     st.selectbox(
                         "Active Strategy",
                         options=strat_ids,
+                        index=curr_idx,
                         format_func=lambda sid: next((s["name"] for s in strats_m if s["id"] == sid), sid),
-                        key=st_key,
+                        key=f"mgr_sel_strat_{k_m}",
                         on_change=_handle_strat_deploy,
-                        args=(k_m, st_key),
+                        args=(k_m,),
                         label_visibility="collapsed"
                     )
 
@@ -865,20 +861,16 @@ def main():
                     st.markdown(f"**{sp_i.icon} {sp_i.name}**", unsafe_allow_html=True)
                     strat_ids_i = [s["id"] for s in strats_i]
                     curr_strat_id_i = next((s["id"] for s in strats_i if s.get("name") == cfg_i.title), strat_ids_i[0])
-                    
-                    st_key_i = f"mgr_sel_strat_{k_i}"
-                    if st_key_i not in st.session_state or st.session_state[st_key_i] not in strat_ids_i:
-                        st.session_state[st_key_i] = curr_strat_id_i
-                    elif any(s["id"] == curr_strat_id_i and s["name"] == cfg_i.title for s in strats_i):
-                        st.session_state[st_key_i] = curr_strat_id_i
+                    curr_idx_i = strat_ids_i.index(curr_strat_id_i) if curr_strat_id_i in strat_ids_i else 0
 
                     st.selectbox(
                         "Active Strategy",
                         options=strat_ids_i,
+                        index=curr_idx_i,
                         format_func=lambda sid: next((s["name"] for s in strats_i if s["id"] == sid), sid),
-                        key=st_key_i,
+                        key=f"mgr_sel_strat_{k_i}",
                         on_change=_handle_strat_deploy,
-                        args=(k_i, st_key_i),
+                        args=(k_i,),
                         label_visibility="collapsed"
                     )
 
@@ -1731,7 +1723,6 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                         badge=f"+{report.win_rate:.0f}% WR | 1:{t1_rr_input:.1f} RR",
                         set_active=True
                     )
-                    st.session_state[f"mgr_sel_strat_{bt_comm_key}"] = new_s["id"]
                     st.success(f"✅ Strategy '{strat_custom_name}' saved to {bt_spec.name} and deployed for 24/7 Live Scanning!")
                     st.rerun()
             with save_c3:
