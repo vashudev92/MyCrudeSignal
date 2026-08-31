@@ -395,7 +395,7 @@ def get_active_strategy_config(comm_key: str = "CRUDEOIL") -> CommodityStrategyC
                     item = data[clean_k]
                     return CommodityStrategyConfig(
                         commodity_key=clean_k,
-                        enabled=item.get("enabled", True),
+                        enabled=item.get("enabled", clean_k == "CRUDEOIL"),
                         title=item.get("title", f"{clean_k} Active Setup"),
                         strategy_model=item.get("strategy_model", "🎯 RSI + MACD Confluence"),
                         session_filter=item.get("session_filter", "⚡ Full Equity Session (09:15 - 15:30 IST)" if clean_k in ("NIFTY", "BANKNIFTY", "FINNIFTY", "SENSEX", "MIDCPNIFTY") else "🌅 Full MCX Session (09:00 - 23:30 IST)"),
@@ -415,7 +415,7 @@ def get_active_strategy_config(comm_key: str = "CRUDEOIL") -> CommodityStrategyC
     s1 = presets["SETUP1"]
     return CommodityStrategyConfig(
         commodity_key=clean_k,
-        enabled=True,
+        enabled=(clean_k == "CRUDEOIL"),
         title=s1["title"],
         strategy_model=s1["model"],
         session_filter=s1["session"],
