@@ -39,7 +39,12 @@ from strategy_presets import (
     get_active_strategy_config,
     save_active_strategy_config,
     get_commodity_presets,
-    CommodityStrategyConfig
+    CommodityStrategyConfig,
+    get_saved_strategies_for_asset,
+    save_custom_strategy,
+    rename_custom_strategy,
+    delete_custom_strategy,
+    deploy_strategy_to_asset
 )
 import os
 
@@ -796,16 +801,32 @@ def main():
         )
         st.markdown(full_radar_html, unsafe_allow_html=True)
 
-        with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)"):
-            st.caption("Enable or mute alerts for any asset. To update an asset's strategy, test in **Strategy Lab & Backtester** and click 'Apply to Asset'.")
+        with st.expander("🎛️ Manage Multi-Asset 24/7 Live Telegram Alert States (9 Assets)", expanded=False):
+            st.caption("Enable or mute alerts for any asset, and choose which saved strategy to deploy for 24/7 scanning.")
             st.markdown("**🛢️ MCX Commodities**")
             col_mcx = st.columns(4)
             mcx_keys = ["CRUDEOIL", "GOLD", "SILVER", "NATURALGAS"]
             for idx_m, k_m in enumerate(mcx_keys):
                 sp_m = get_commodity_spec(k_m)
                 cfg_m = get_active_strategy_config(k_m)
+                strats_m = get_saved_strategies_for_asset(k_m)
                 with col_mcx[idx_m]:
-                    st.markdown(f"**{sp_m.icon} {sp_m.name}**<br><span style='font-size:0.72rem; color:#475569;'>{cfg_m.title}<br>SL: {cfg_m.sl_pts:.0f}p | 1:{cfg_m.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{sp_m.icon} {sp_m.name}**", unsafe_allow_html=True)
+                    strat_names = [s["name"] for s in strats_m]
+                    curr_idx = next((i for i, s in enumerate(strats_m) if s.get("name") == cfg_m.title), 0)
+                    sel_s = st.selectbox(
+                        "Active Strategy",
+                        range(len(strat_names)),
+                        format_func=lambda i: strat_names[i],
+                        index=curr_idx,
+                        key=f"mgr_sel_strat_{k_m}",
+                        label_visibility="collapsed"
+                    )
+                    if strat_names[sel_s] != cfg_m.title:
+                        deploy_strategy_to_asset(k_m, strats_m[sel_s]["id"])
+                        st.rerun()
+
+                    st.markdown(f"<div style='font-size:0.70rem; color:#475569; margin-top:2px;'>SL: {cfg_m.sl_pts:.0f}p | 1:{cfg_m.t1_rr:.1f} RR</div>", unsafe_allow_html=True)
                     tg_val = st.toggle("Live Alerts", value=cfg_m.enabled, key=f"mgr_tg_{k_m}")
                     if tg_val != cfg_m.enabled:
                         cfg_m.enabled = tg_val
@@ -819,83 +840,47 @@ def main():
             for idx_i, k_i in enumerate(idx_keys):
                 sp_i = get_commodity_spec(k_i)
                 cfg_i = get_active_strategy_config(k_i)
+                strats_i = get_saved_strategies_for_asset(k_i)
                 with col_idx[idx_i]:
-                    st.markdown(f"**{sp_i.icon} {sp_i.name}**<br><span style='font-size:0.72rem; color:#475569;'>{cfg_i.title}<br>SL: {cfg_i.sl_pts:.0f}p | 1:{cfg_i.t1_rr:.1f} RR</span>", unsafe_allow_html=True)
+                    st.markdown(f"**{sp_i.icon} {sp_i.name}**", unsafe_allow_html=True)
+                    strat_names_i = [s["name"] for s in strats_i]
+                    curr_idx_i = next((i for i, s in enumerate(strats_i) if s.get("name") == cfg_i.title), 0)
+                    sel_s_i = st.selectbox(
+                        "Active Strategy",
+                        range(len(strat_names_i)),
+                        format_func=lambda i: strat_names_i[i],
+                        index=curr_idx_i,
+                        key=f"mgr_sel_strat_{k_i}",
+                        label_visibility="collapsed"
+                    )
+                    if strat_names_i[sel_s_i] != cfg_i.title:
+                        deploy_strategy_to_asset(k_i, strats_i[sel_s_i]["id"])
+                        st.rerun()
+
+                    st.markdown(f"<div style='font-size:0.70rem; color:#475569; margin-top:2px;'>SL: {cfg_i.sl_pts:.0f}p | 1:{cfg_i.t1_rr:.1f} RR</div>", unsafe_allow_html=True)
                     tg_val = st.toggle("Live Alerts", value=cfg_i.enabled, key=f"mgr_tg_{k_i}")
                     if tg_val != cfg_i.enabled:
                         cfg_i.enabled = tg_val
                         save_active_strategy_config(cfg_i)
                         st.rerun()
 
-        # ── 3 QUICK-SWITCH VERIFIED LIVE STRATEGY PRESET BUTTONS ───────────────
-        comm_presets = get_commodity_presets(comm_key)
+        # ── DYNAMIC SAVED STRATEGY PRESETS FOR ACTIVE ASSET ───────────────
+        active_saved_strats = get_saved_strategies_for_asset(comm_key)
         active_cfg = get_active_strategy_config(comm_key)
 
-        st.markdown(f'<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ 3 VERIFIED PROFITABLE LIVE PRESETS FOR {spec.name.upper()}</div>', unsafe_allow_html=True)
-        col_s1, col_s2, col_s3 = st.columns(3)
-
-        with col_s1:
-            p1 = comm_presets["SETUP1"]
-            btn_s1_style = "primary" if (active_cfg.strategy_model == p1["model"] and active_cfg.sl_pts == p1["sl_pts"]) else "secondary"
-            if st.button(f"{p1['title']}\n({p1['badge']})", type=btn_s1_style, use_container_width=True, key=f"btn_p1_{comm_key}"):
-                new_cfg = CommodityStrategyConfig(
-                    commodity_key=comm_key,
-                    enabled=True,
-                    title=p1["title"],
-                    strategy_model=p1["model"],
-                    session_filter=p1["session"],
-                    sl_pts=float(p1["sl_pts"]),
-                    t1_rr=float(p1["t1_rr"]),
-                    t2_rr=float(p1["t2_rr"]),
-                    market_regime=p1["regime"],
-                    trailing_mode=p1["trailing"],
-                    max_daily_trades=int(p1["max_trades"]),
-                    lots=1
-                )
-                save_active_strategy_config(new_cfg)
-                st.rerun()
-
-        with col_s2:
-            p2 = comm_presets["SETUP2"]
-            btn_s2_style = "primary" if (active_cfg.strategy_model == p2["model"] and active_cfg.sl_pts == p2["sl_pts"]) else "secondary"
-            if st.button(f"{p2['title']}\n({p2['badge']})", type=btn_s2_style, use_container_width=True, key=f"btn_p2_{comm_key}"):
-                new_cfg = CommodityStrategyConfig(
-                    commodity_key=comm_key,
-                    enabled=True,
-                    title=p2["title"],
-                    strategy_model=p2["model"],
-                    session_filter=p2["session"],
-                    sl_pts=float(p2["sl_pts"]),
-                    t1_rr=float(p2["t1_rr"]),
-                    t2_rr=float(p2["t2_rr"]),
-                    market_regime=p2["regime"],
-                    trailing_mode=p2["trailing"],
-                    max_daily_trades=int(p2["max_trades"]),
-                    lots=1
-                )
-                save_active_strategy_config(new_cfg)
-                st.rerun()
-
-        with col_s3:
-            p3 = comm_presets["SETUP3"]
-            btn_s3_style = "primary" if (active_cfg.strategy_model == p3["model"] and active_cfg.sl_pts == p3["sl_pts"]) else "secondary"
-            if st.button(f"{p3['title']}\n({p3['badge']})", type=btn_s3_style, use_container_width=True, key=f"btn_p3_{comm_key}"):
-                new_cfg = CommodityStrategyConfig(
-                    commodity_key=comm_key,
-                    enabled=True,
-                    title=p3["title"],
-                    strategy_model=p3["model"],
-                    session_filter=p3["session"],
-                    sl_pts=float(p3["sl_pts"]),
-                    t1_rr=float(p3["t1_rr"]),
-                    t2_rr=float(p3["t2_rr"]),
-                    market_regime=p3["regime"],
-                    trailing_mode=p3["trailing"],
-                    max_daily_trades=int(p3["max_trades"]),
-                    lots=1
-                )
-                save_active_strategy_config(new_cfg)
-                st.rerun()
+        st.markdown(f'<div class="mini-card" style="padding:6px 12px; margin-bottom:6px;"><div class="mini-card-header">⚡ SAVED STRATEGIES FOR {spec.name.upper()} ({len(active_saved_strats)} AVAILABLE)</div>', unsafe_allow_html=True)
+        
+        n_btns = len(active_saved_strats)
+        cols_strat = st.columns(min(n_btns, 4))
+        for s_idx, s_item in enumerate(active_saved_strats):
+            col_target = cols_strat[s_idx % len(cols_strat)]
+            with col_target:
+                is_active = (active_cfg.title == s_item["name"])
+                btn_style = "primary" if is_active else "secondary"
+                btn_label = f"{'⚡ ' if is_active else ''}{s_item['name']}\n(SL: {s_item['sl_pts']:.0f}p | 1:{s_item['t1_rr']:.1f} RR)"
+                if st.button(btn_label, type=btn_style, use_container_width=True, key=f"btn_quick_strat_{comm_key}_{s_item['id']}"):
+                    deploy_strategy_to_asset(comm_key, s_item["id"])
+                    st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1694,27 +1679,25 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 </div>
                 """, unsafe_allow_html=True)
 
-            # ── 🚀 BIND BACKTEST STRATEGY TO LIVE TELEGRAM SCANNER BUTTON ────────
-            st.markdown("""
-            <div class="mini-card" style="background:#F0FDF4; border:1.5px solid #86EFAC; padding:8px 12px; margin-top:8px; margin-bottom:8px;">
+            # ── 🚀 SAVE & DEPLOY BACKTEST STRATEGY TO ASSET LIBRARY ────────
+            st.markdown(f"""
+            <div class="mini-card" style="background:#F0FDF4; border:1.5px solid #86EFAC; padding:10px 14px; margin-top:8px; margin-bottom:8px;">
+                <div style="font-size:0.82rem; font-weight:800; color:#15803D; letter-spacing:0.02em; display:flex; align-items:center; gap:6px;">
+                    <span>💾</span> <span>SAVE & DEPLOY BACKTEST SETUP TO {bt_spec.name.upper()} STRATEGY LIBRARY</span>
+                </div>
             """, unsafe_allow_html=True)
-            col_bind1, col_bind2 = st.columns([3.0, 1.2])
-            with col_bind1:
-                st.markdown(f"""
-                <div style="font-size:0.78rem; font-weight:800; color:#15803D; letter-spacing:0.02em;">
-                    🚀 BIND THIS BACKTEST STRATEGY TO {bt_spec.name.upper()} LIVE TELEGRAM SCANNER
-                </div>
-                <div style="font-size:0.72rem; color:#475569; font-family:'JetBrains Mono',monospace; margin-top:2px;">
-                    Model: <b>{strategy_choice}</b> | SL: <b>{sl_input:.1f} pts</b> | Target 1: <b>1:{t1_rr_input:.1f} RR</b> | Session: <b>{session_choice.split('(')[0].strip()}</b> | Filter: <b>{regime_choice.split('(')[0].strip()}</b>
-                </div>
-                """, unsafe_allow_html=True)
-            with col_bind2:
-                if st.button(f"💾 Apply to {bt_spec.name}", type="primary", use_container_width=True, key=f"btn_apply_live_scan_{bt_comm_key}"):
-                    new_cfg = CommodityStrategyConfig(
+            
+            save_c1, save_c2, save_c3 = st.columns([2.2, 1.4, 1.4])
+            with save_c1:
+                suggested_name = f"{strategy_choice.split('(')[0].strip()} ({'1:' + str(t1_rr_input) + ' RR'})"
+                strat_custom_name = st.text_input("Custom Strategy Name", value=suggested_name, key=f"inp_strat_name_{bt_comm_key}")
+            with save_c2:
+                st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
+                if st.button(f"🚀 Save & Deploy Live", type="primary", use_container_width=True, key=f"btn_save_deploy_{bt_comm_key}"):
+                    save_custom_strategy(
                         commodity_key=bt_comm_key,
-                        enabled=True,
-                        title=f"{strategy_choice.split('(')[0].strip()} (Tuned)",
-                        strategy_model=strategy_choice,
+                        name=strat_custom_name,
+                        model=strategy_choice,
                         session_filter=session_choice,
                         sl_pts=float(sl_input),
                         t1_rr=float(t1_rr_input),
@@ -1722,12 +1705,75 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                         market_regime=regime_choice,
                         trailing_mode=trail_choice,
                         max_daily_trades=int(max_trades_input),
-                        lots=int(trade_lot_size)
+                        badge=f"+{report.win_rate:.0f}% WR | 1:{t1_rr_input:.1f} RR",
+                        set_active=True
                     )
-                    save_active_strategy_config(new_cfg)
-                    st.success(f"✅ Active! {bt_spec.name} live Telegram signals will now trigger with these exact parameters!")
+                    st.success(f"✅ Strategy '{strat_custom_name}' saved to {bt_spec.name} and deployed for 24/7 Live Scanning!")
                     st.rerun()
+            with save_c3:
+                st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
+                if st.button(f"📁 Save to Library Only", type="secondary", use_container_width=True, key=f"btn_save_lib_only_{bt_comm_key}"):
+                    save_custom_strategy(
+                        commodity_key=bt_comm_key,
+                        name=strat_custom_name,
+                        model=strategy_choice,
+                        session_filter=session_choice,
+                        sl_pts=float(sl_input),
+                        t1_rr=float(t1_rr_input),
+                        t2_rr=float(t1_rr_input * 1.5),
+                        market_regime=regime_choice,
+                        trailing_mode=trail_choice,
+                        max_daily_trades=int(max_trades_input),
+                        badge=f"+{report.win_rate:.0f}% WR | 1:{t1_rr_input:.1f} RR",
+                        set_active=False
+                    )
+                    st.success(f"📁 Strategy '{strat_custom_name}' saved to {bt_spec.name} library!")
+                    st.rerun()
+
             st.markdown("</div>", unsafe_allow_html=True)
+
+            # ── 📚 MANAGE SAVED STRATEGIES FOR THIS ASSET (EDIT / DELETE / DEPLOY) ──
+            asset_saved_strats = get_saved_strategies_for_asset(bt_comm_key)
+            with st.expander(f"📚 Manage Saved Strategies for {bt_spec.name} ({len(asset_saved_strats)} Saved)", expanded=False):
+                curr_active_cfg = get_active_strategy_config(bt_comm_key)
+
+                for s_item in asset_saved_strats:
+                    s_id = s_item["id"]
+                    is_currently_active = (curr_active_cfg.title == s_item["name"])
+                    
+                    st.markdown(f"""
+                    <div style="background:#F8FAFC; border:1px solid {'#10B981' if is_currently_active else '#E2E8F0'}; border-radius:6px; padding:8px 12px; margin-bottom:6px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <b style="font-size:0.85rem; color:#0F172A;">{s_item['name']}</b>
+                                {' <span style="color:#059669; font-weight:800; font-size:0.75rem;">(⚡ ACTIVE LIVE SCANNER)</span>' if is_currently_active else ''}
+                                <div style="font-size:0.72rem; color:#64748B; font-family:'JetBrains Mono',monospace; margin-top:2px;">
+                                    Model: <b>{s_item['model']}</b> | SL: <b>{s_item['sl_pts']:.0f} pts</b> | RR: <b>1:{s_item['t1_rr']:.1f}</b> | Session: <b>{s_item['session'].split('(')[0].strip()}</b>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_act1, col_act2, col_act3 = st.columns([1.2, 1.8, 1.0])
+                    with col_act1:
+                        if not is_currently_active:
+                            if st.button("⚡ Deploy Live", key=f"btn_dep_{bt_comm_key}_{s_id}", use_container_width=True):
+                                deploy_strategy_to_asset(bt_comm_key, s_id)
+                                st.rerun()
+                        else:
+                            st.button("✅ Active Live", disabled=True, key=f"btn_act_dis_{bt_comm_key}_{s_id}", use_container_width=True)
+                    with col_act2:
+                        with st.popover(f"✏️ Rename", use_container_width=True):
+                            new_name_val = st.text_input("New Strategy Name", value=s_item["name"], key=f"ren_inp_{bt_comm_key}_{s_id}")
+                            if st.button("Save Name", key=f"btn_save_ren_{bt_comm_key}_{s_id}", type="primary"):
+                                rename_custom_strategy(bt_comm_key, s_id, new_name_val)
+                                st.success("Renamed!")
+                                st.rerun()
+                    with col_act3:
+                        if st.button("🗑️ Delete", key=f"btn_del_{bt_comm_key}_{s_id}", use_container_width=True):
+                            delete_custom_strategy(bt_comm_key, s_id)
+                            st.rerun()
 
             st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
             
