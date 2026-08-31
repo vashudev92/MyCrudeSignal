@@ -704,8 +704,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    tab_live, tab_backtest = st.tabs([
+    tab_live, tab_audit, tab_backtest = st.tabs([
         "⚡ Live Execution & Signals",
+        "📜 Live System Trade Journal & History",
         "📊 Strategy Lab & Backtester"
     ])
 
@@ -1311,7 +1312,156 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 2: INSTANT REACTIVE STRATEGY LAB & BACKTESTER
+    # TAB 2: LIVE SYSTEM SIGNAL AUDIT & TRADE JOURNAL
+    # ════════════════════════════════════════════════════════════════════════
+    with tab_audit:
+        from trade_database import get_live_trades_df, get_live_performance_summary
+        
+        st.markdown("""
+        <div class="mini-card" style="padding:10px 14px; margin-bottom:10px;">
+            <div style="font-size:0.95rem; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:6px;">
+                <span>📜</span> <span>LIVE SYSTEM TRADE JOURNAL & AUDIT LEDGER</span>
+            </div>
+            <div style="font-size:0.75rem; color:#64748B; margin-top:2px;">
+                Permanent database of every live signal fired by the 24/7 backend daemon. Tracks exact execution levels, target hits, stop losses, duration, and net in-pocket P/L.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Performance Summary KPIs
+        live_perf = get_live_performance_summary()
+        
+        k1, k2, k3, k4, k5, k6 = st.columns(6)
+        with k1:
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid #0284C7;">
+                <div class="mini-tile-lbl">TOTAL SIGNALS</div>
+                <div class="mini-tile-val">{live_perf['total_signals']}</div>
+                <div class="mini-tile-sub">{live_perf['completed_trades']} Closed | {live_perf['open_trades']} Open</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with k2:
+            wr = live_perf['win_rate']
+            wr_col = "#059669" if wr >= 50 else ("#D97706" if wr > 0 else "#64748B")
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid {wr_col};">
+                <div class="mini-tile-lbl">LIVE WIN RATE</div>
+                <div class="mini-tile-val" style="color:{wr_col};">{wr:.1f}%</div>
+                <div class="mini-tile-sub">{live_perf['winning_trades']}W / {live_perf['losing_trades']}L</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with k3:
+            net_pnl = live_perf['total_net_pnl']
+            pnl_col = "#059669" if net_pnl > 0 else ("#DC2626" if net_pnl < 0 else "#64748B")
+            pnl_sign = "+" if net_pnl > 0 else ""
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid {pnl_col};">
+                <div class="mini-tile-lbl">NET REALIZED P/L</div>
+                <div class="mini-tile-val" style="color:{pnl_col};">{pnl_sign}₹{net_pnl:,.2f}</div>
+                <div class="mini-tile-sub">Gross: ₹{live_perf['total_gross_pnl']:,.2f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with k4:
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid #D97706;">
+                <div class="mini-tile-lbl">BROKERAGE & TAXES</div>
+                <div class="mini-tile-val" style="color:#D97706;">₹{live_perf['total_charges']:,.2f}</div>
+                <div class="mini-tile-sub">CTT, GST, Stamp</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with k5:
+            pf = live_perf['profit_factor']
+            pf_col = "#059669" if pf >= 1.5 else ("#D97706" if pf >= 1.0 else "#64748B")
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid {pf_col};">
+                <div class="mini-tile-lbl">PROFIT FACTOR</div>
+                <div class="mini-tile-val" style="color:{pf_col};">{pf:.2f}</div>
+                <div class="mini-tile-sub">Max DD: ₹{live_perf['max_drawdown']:,.0f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with k6:
+            st.markdown(f"""
+            <div class="mini-tile" style="border-top: 2.5px solid #6366F1;">
+                <div class="mini-tile-lbl">ACTIVE OPEN TRADES</div>
+                <div class="mini-tile-val" style="color:#6366F1;">{live_perf['open_trades']}</div>
+                <div class="mini-tile-sub">Isolated 1/Asset</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+        
+        # Filter Bar
+        f_col1, f_col2, f_col3, f_col4 = st.columns([1.5, 1.5, 1.5, 1.5])
+        with f_col1:
+            asset_options = ["ALL"] + list(COMMODITY_REGISTRY.keys())
+            sel_asset = st.selectbox("Filter Asset", asset_options, format_func=lambda x: "🌐 All Assets (9)" if x == "ALL" else f"{COMMODITY_REGISTRY[x].icon} {COMMODITY_REGISTRY[x].name}", key="live_log_asset_filter")
+        with f_col2:
+            status_options = ["ALL", "OPEN", "TARGET2", "TARGET1", "TRAIL_COST_EXIT", "STOP_LOSS"]
+            sel_status = st.selectbox("Filter Outcome", status_options, format_func=lambda x: "All Outcomes" if x == "ALL" else x, key="live_log_status_filter")
+        with f_col3:
+            log_date_from = st.date_input("From Date", value=datetime.now(IST).date() - timedelta(days=30), key="live_log_date_from")
+        with f_col4:
+            log_date_to = st.date_input("To Date", value=datetime.now(IST).date(), key="live_log_date_to")
+
+        df_live_log = get_live_trades_df(
+            commodity_key=sel_asset if sel_asset != "ALL" else None,
+            date_from=str(log_date_from),
+            date_to=str(log_date_to),
+            limit=500
+        )
+        
+        if sel_status != "ALL" and not df_live_log.empty:
+            df_live_log = df_live_log[df_live_log["status"] == sel_status]
+
+        if df_live_log.empty:
+            st.info("ℹ️ No live trades recorded yet in the database for the selected filter. Newly generated signals will automatically appear here in real-time.")
+        else:
+            display_df = df_live_log[[
+                "trade_id", "commodity_key", "contract_name", "direction",
+                "entry_time", "exit_time", "duration_str", "entry_premium",
+                "exit_premium", "points_captured", "charges_rs", "net_pnl_rs", "outcome"
+            ]].copy()
+            
+            display_df.rename(columns={
+                "trade_id": "Trade ID",
+                "commodity_key": "Asset",
+                "contract_name": "Contract",
+                "direction": "Direction",
+                "entry_time": "Entry Time",
+                "exit_time": "Exit Time",
+                "duration_str": "Duration",
+                "entry_premium": "Entry (₹)",
+                "exit_premium": "Exit (₹)",
+                "points_captured": "Pts",
+                "charges_rs": "Taxes (₹)",
+                "net_pnl_rs": "Net P/L (₹)",
+                "outcome": "Status"
+            }, inplace=True)
+
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True,
+                height=380
+            )
+
+            # CSV Download Button
+            csv_data = df_live_log.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Export Live Trade Log to CSV",
+                data=csv_data,
+                file_name=f"live_trade_audit_log_{datetime.now(IST).strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                key="btn_download_live_csv"
+            )
+
+    # ════════════════════════════════════════════════════════════════════════
+    # TAB 3: INSTANT REACTIVE STRATEGY LAB & BACKTESTER
     # ════════════════════════════════════════════════════════════════════════
     with tab_backtest:
         st.markdown('<div class="mini-card"><div class="mini-card-header">🎛️ STRATEGY AUDIT LAB — MULTI-COMMODITY CONTROLS</div>', unsafe_allow_html=True)

@@ -22,8 +22,12 @@ from indicators import calculate_pivot_points, compute_indicators
 from signal_engine import SignalEngine, SignalType
 from alert_manager import get_alert_manager, send_tp_sl_alert
 
-from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec
+from commodity_registry import COMMODITY_REGISTRY, get_commodity_spec, calculate_commodity_option_charges
 from strategy_presets import get_active_strategy_config
+from trade_database import (
+    log_trade_entry, log_trade_event, get_open_trades,
+    get_daily_trade_count, increment_daily_trade_count
+)
 
 IST = pytz.timezone(IST_TIMEZONE)
 
@@ -88,9 +92,27 @@ def _scanner_loop():
             if token:
                 now_dt = datetime.now(IST)
                 today_str = now_dt.strftime("%Y-%m-%d")
-                if _daily_count_date != today_str:
-                    _daily_trade_counts.clear()
-                    _daily_count_date = today_str
+                
+                # Restore any open positions from database upon startup
+                if not _active_trade_trackers:
+                    try:
+                        open_trades = get_open_trades()
+                        for ot in open_trades:
+                            ck = ot["commodity_key"]
+                            _active_trade_trackers[ck] = {
+                                "direction": ot["direction"],
+                                "contract": ot["contract_name"],
+                                "entry_spot": ot["entry_spot"],
+                                "entry_premium": ot["entry_premium"],
+                                "sl_pts": ot["sl_pts"],
+                                "t1_pts": ot["t1_pts"],
+                                "t2_pts": ot["t2_pts"],
+                                "lots": ot["lots"],
+                                "trade_id": ot["trade_id"],
+                                "t1_alerted": (ot["status"] == "TARGET1")
+                            }
+                    except Exception as db_rec_e:
+                        print(f"[BackgroundScanner] State recovery notice: {db_rec_e}")
 
                 is_us_prime = (16 <= now_dt.hour <= 22 or (now_dt.hour == 23 and now_dt.minute <= 30))
                 is_morning_drive = ((now_dt.hour == 9 and now_dt.minute >= 15) or (now_dt.hour == 10) or (now_dt.hour == 11 and now_dt.minute <= 30))
@@ -113,8 +135,9 @@ def _scanner_loop():
                     if "Morning Opening Drive" in cfg.session_filter and not is_morning_drive:
                         continue
 
-                    # 4. Check daily trade count limit (prevent exceeding configured frequency)
-                    if _daily_trade_counts.get(comm_key, 0) >= cfg.max_daily_trades:
+                    # 4. Check persistent daily trade count limit from database
+                    db_trades_today = get_daily_trade_count(comm_key, today_str)
+                    if db_trades_today >= cfg.max_daily_trades:
                         continue
 
                     # 5. Check post-loss cooling period (15 minutes after Stop Loss)
@@ -140,9 +163,10 @@ def _scanner_loop():
                                 )
                             else:
                                 pivot = calculate_pivot_points(
-                                    prev_high=float(df_candles["high"].iloc[-30:-1].max()),
-                                    prev_low=float(df_candles["low"].iloc[-30:-1].min()),
-                                    prev_close=float(df_candles["close"].iloc[-2])
+                                    prev_high=float(df_candles["high"].max()),
+                                    prev_low=float(df_candles["low"].min()),
+                                    prev_close=float(df_candles["close"].iloc[-1]),
+                                    date=str(df_candles["date"].iloc[-1])
                                 )
 
                             indicators = compute_indicators(df_candles, pivot)
@@ -160,6 +184,8 @@ def _scanner_loop():
 
                                 # 1. Target 2 Hit (Runner Target Met)
                                 if pts_move >= tr["t2_pts"]:
+                                    chg = calculate_commodity_option_charges(tr["entry_premium"], cur_prem, commodity_key=comm_key, lots=tr["lots"])
+                                    net_rs = round(gross_rs - chg["total_charges"], 2)
                                     send_tp_sl_alert(
                                         event_type="TARGET2",
                                         contract_name=tr["contract"],
@@ -171,10 +197,23 @@ def _scanner_loop():
                                         trade_id=tr.get("trade_id", ""),
                                         entry_premium=tr.get("entry_premium", 0.0),
                                     )
+                                    log_trade_event(
+                                        trade_id=tr.get("trade_id", ""),
+                                        event_type="TARGET2",
+                                        exit_premium=cur_prem,
+                                        points_captured=pts_move,
+                                        gross_pnl_rs=gross_rs,
+                                        charges_rs=chg["total_charges"],
+                                        net_pnl_rs=net_rs,
+                                        exit_time=now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                        notes="Target 2 Met. Trade 100% Closed."
+                                    )
                                     _active_trade_trackers[comm_key] = None
 
                                 # 2. Target 1 Hit (Book Profit / Lock Breakeven)
                                 elif pts_move >= tr["t1_pts"] and not tr.get("t1_alerted", False):
+                                    chg = calculate_commodity_option_charges(tr["entry_premium"], cur_prem, commodity_key=comm_key, lots=tr["lots"])
+                                    net_rs = round(gross_rs - chg["total_charges"], 2)
                                     send_tp_sl_alert(
                                         event_type="TARGET1",
                                         contract_name=tr["contract"],
@@ -186,10 +225,23 @@ def _scanner_loop():
                                         trade_id=tr.get("trade_id", ""),
                                         entry_premium=tr.get("entry_premium", 0.0),
                                     )
+                                    log_trade_event(
+                                        trade_id=tr.get("trade_id", ""),
+                                        event_type="TARGET1",
+                                        exit_premium=cur_prem,
+                                        points_captured=pts_move,
+                                        gross_pnl_rs=gross_rs,
+                                        charges_rs=chg["total_charges"],
+                                        net_pnl_rs=net_rs,
+                                        exit_time=now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                        notes="Target 1 Achieved. Booked partial & trailed SL to cost."
+                                    )
                                     tr["t1_alerted"] = True
 
                                 # 3. Trailing SL to Cost / Breakeven (Protects Runner After Target 1)
                                 elif tr.get("t1_alerted", False) and "Lock Cost" in cfg.trailing_mode and pts_move <= 0:
+                                    chg = calculate_commodity_option_charges(tr["entry_premium"], tr["entry_premium"], commodity_key=comm_key, lots=tr["lots"])
+                                    net_rs = round(0.0 - chg["total_charges"], 2)
                                     send_tp_sl_alert(
                                         event_type="TRAIL_COST_EXIT",
                                         contract_name=tr["contract"],
@@ -201,10 +253,23 @@ def _scanner_loop():
                                         trade_id=tr.get("trade_id", ""),
                                         entry_premium=tr.get("entry_premium", 0.0),
                                     )
+                                    log_trade_event(
+                                        trade_id=tr.get("trade_id", ""),
+                                        event_type="TRAIL_COST_EXIT",
+                                        exit_premium=tr["entry_premium"],
+                                        points_captured=0.0,
+                                        gross_pnl_rs=0.0,
+                                        charges_rs=chg["total_charges"],
+                                        net_pnl_rs=net_rs,
+                                        exit_time=now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                        notes="Runner Exited at Breakeven / Cost. Capital Safe."
+                                    )
                                     _active_trade_trackers[comm_key] = None
 
                                 # 4. Initial Stop Loss Hit
                                 elif pts_move <= -tr["sl_pts"]:
+                                    chg = calculate_commodity_option_charges(tr["entry_premium"], cur_prem, commodity_key=comm_key, lots=tr["lots"])
+                                    net_rs = round(gross_rs - chg["total_charges"], 2)
                                     send_tp_sl_alert(
                                         event_type="STOP_LOSS",
                                         contract_name=tr["contract"],
@@ -215,6 +280,17 @@ def _scanner_loop():
                                         commodity_key=comm_key,
                                         trade_id=tr.get("trade_id", ""),
                                         entry_premium=tr.get("entry_premium", 0.0),
+                                    )
+                                    log_trade_event(
+                                        trade_id=tr.get("trade_id", ""),
+                                        event_type="STOP_LOSS",
+                                        exit_premium=cur_prem,
+                                        points_captured=pts_move,
+                                        gross_pnl_rs=gross_rs,
+                                        charges_rs=chg["total_charges"],
+                                        net_pnl_rs=net_rs,
+                                        exit_time=now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                        notes="Stop Loss Triggered. Max Risk Limited."
                                     )
                                     _active_trade_trackers[comm_key] = None
                                     _post_loss_cooldowns[comm_key] = time.time() + 900  # 15 min cooling period after SL
@@ -259,7 +335,27 @@ def _scanner_loop():
                                         trade_id=trade_id,
                                     )
                                     if fired:
-                                        _daily_trade_counts[comm_key] = _daily_trade_counts.get(comm_key, 0) + 1
+                                        increment_daily_trade_count(comm_key, today_str)
+                                        log_trade_entry(
+                                            trade_id=trade_id,
+                                            commodity_key=comm_key,
+                                            contract_name=signal.option_contract,
+                                            direction=signal.signal.value,
+                                            strategy_model=cfg.strategy_model,
+                                            entry_spot=signal.entry_price,
+                                            entry_premium=signal.option_buy_price,
+                                            sl_pts=cfg.sl_pts,
+                                            sl_premium=signal.option_stop_loss,
+                                            t1_pts=cfg.sl_pts * cfg.t1_rr,
+                                            t1_premium=signal.option_target1,
+                                            t2_pts=cfg.sl_pts * cfg.t2_rr,
+                                            t2_premium=signal.option_target2,
+                                            lots=cfg.lots,
+                                            lot_size=spec.active_lot_size,
+                                            lot_unit=spec.lot_unit,
+                                            entry_time=now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                            notes=f"Signal Fired ({signal.confidence.value} Confidence)"
+                                        )
                                         _active_trade_trackers[comm_key] = {
                                             "direction": signal.signal.value,
                                             "contract": signal.option_contract,
