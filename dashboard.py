@@ -1953,7 +1953,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
 
         # ── Clean Tweakable Filter Controls Row ──
         with st.container(border=True):
-            f1, f2, f3, f4, f5 = st.columns([1.6, 1.1, 1.1, 1.1, 1.1])
+            f1, f2, f3, f4, f5, f6 = st.columns([1.5, 1.1, 1.0, 1.0, 1.2, 0.9])
             with f1:
                 universe_options = [
                     "🏛️ All Liquid NSE Stocks",
@@ -1963,14 +1963,16 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 ]
                 sel_univ = st.selectbox("Stock Universe", universe_options, index=0, key="sc_univ_flt")
             with f2:
-                sc_min_cr = st.number_input("Min Volume (₹ Cr)", min_value=1.0, max_value=20.0, value=4.0, step=0.5, key="sc_min_cr_flt")
+                sc_max_risk = st.number_input("Max Risk / Trade (₹)", min_value=500, max_value=200000, value=5000, step=500, key="sc_max_risk_inp", help="Used to automatically calculate exact Shares to buy = Max Risk ÷ (Entry - Stop Loss)")
             with f3:
-                sc_rvv = st.number_input("Min RVV Multiple", min_value=5.0, max_value=50.0, value=10.0, step=1.0, key="sc_rvv_flt")
+                sc_min_cr = st.number_input("Min Volume (₹ Cr)", min_value=1.0, max_value=20.0, value=4.0, step=0.5, key="sc_min_cr_flt")
             with f4:
-                sc_imp = st.slider("Min Impulse %", min_value=0.4, max_value=3.0, value=0.8, step=0.1, key="sc_imp_flt")
+                sc_rvv = st.number_input("Min RVV Multiple", min_value=5.0, max_value=50.0, value=10.0, step=1.0, key="sc_rvv_flt")
             with f5:
+                sc_imp = st.slider("Min Impulse %", min_value=0.4, max_value=3.0, value=0.8, step=0.1, key="sc_imp_flt")
+            with f6:
                 st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-                sc_52w = st.checkbox("⭐ 52W High Only", value=False, key="sc_52w_flt")
+                sc_52w = st.checkbox("⭐ 52W Only", value=False, key="sc_52w_flt")
 
             scan_now = st.button("🔍 Scan Stocks with Current Filters", type="primary", use_container_width=True, key="btn_apply_scan")
 
@@ -2003,23 +2005,34 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         if not signals:
             st.info(f"ℹ️ No stocks currently qualify for intraday trade open with these filters (₹{sc_min_cr:.1f} Cr / {sc_rvv:.0f}x RVV / {sc_imp:.1f}% Impulse). Try lowering thresholds slightly.")
         else:
-            st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now:**")
+            st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now (Position Sized for ₹{sc_max_risk:,.0f} Max Risk):**")
 
             # ── Clean Table of Open Trades ──
             table_rows = []
             for s in signals:
                 risk_pts = max(1.0, s.entry_price - s.stop_loss)
-                tag_52w = "⭐ 52W Breakout" if s.fifty_two_week_break else "Standard Breakout"
+                qty = int(sc_max_risk / risk_pts)
+                if qty <= 0:
+                    qty = 1
+                trade_val = qty * s.entry_price
+                max_loss_rs = qty * risk_pts
+                pnl_t1 = qty * 3.0 * risk_pts
+                pnl_t2 = qty * 4.0 * risk_pts
+
+                tag_52w = "⭐ 52W Breakout" if s.fifty_two_week_break else "Standard"
                 table_rows.append({
                     "Stock": s.stock,
                     "Action": "🟢 BUY",
+                    "Qty (Shares)": f"{qty:,} shs",
                     "Entry (₹)": f"₹{s.entry_price:,.2f}",
                     "Stop Loss (₹)": f"₹{s.stop_loss:,.2f}",
-                    "Target 1 (1:3 RR)": f"₹{s.target1:,.2f}",
-                    "Target 2 (1:4 RR)": f"₹{s.target2:,.2f}",
-                    "Risk (Pts)": f"{risk_pts:.1f} pts",
-                    "Impulse Value": f"₹{s.impulse_value_cr:.1f} Cr ({s.rvv_multiple:.0f}x)",
-                    "Setup Type": tag_52w,
+                    "Target 1 (1:3)": f"₹{s.target1:,.2f}",
+                    "Target 2 (1:4)": f"₹{s.target2:,.2f}",
+                    "Est. Profit T1": f"+₹{pnl_t1:,.0f}",
+                    "Est. Profit T2": f"+₹{pnl_t2:,.0f}",
+                    "Max Risk (₹)": f"-₹{max_loss_rs:,.0f}",
+                    "Trade Value": f"₹{trade_val:,.0f}",
+                    "Setup": tag_52w,
                     "Sector": s.sector
                 })
 
