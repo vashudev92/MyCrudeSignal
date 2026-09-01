@@ -1948,30 +1948,60 @@ SIGNAL AT: <b>{signal.timestamp}</b>
     # TAB 4: NSE INTRADAY STOCKS SCANNER (ACTIONABLE TRADE LIST ONLY)
     # ════════════════════════════════════════════════════════════════════════
     with tab_scanner:
-        col_hdr, col_btn = st.columns([3.5, 1.5])
-        with col_hdr:
-            st.markdown("### 🚀 NSE Intraday Stock Scanner")
-            st.caption("Institutional Volume & Breakout Algorithm • Real-Time Intraday Trade Candidates")
-        with col_btn:
-            st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
-            scan_now = st.button("🔍 Scan All NSE Stocks Now", type="primary", use_container_width=True, key="btn_simple_scan_now")
+        st.markdown("### 🚀 NSE Intraday Stock Scanner")
+        st.caption("Institutional Volume & Breakout Algorithm • Tweak Parameters to Refine Signals")
 
-        # Scan NSE stocks on button click or load
-        if scan_now or "simple_scanner_signals" not in st.session_state:
-            with st.spinner("Scanning NSE stocks as per algorithm criteria..."):
+        # ── Clean Tweakable Filter Controls Row ──
+        with st.container(border=True):
+            f1, f2, f3, f4, f5 = st.columns([1.6, 1.1, 1.1, 1.1, 1.1])
+            with f1:
+                universe_options = [
+                    "🏛️ All Liquid NSE Stocks",
+                    "🏦 Banking & Financials",
+                    "⚡ Tech & Consumer",
+                    "🏭 Metals & Industrials"
+                ]
+                sel_univ = st.selectbox("Stock Universe", universe_options, index=0, key="sc_univ_flt")
+            with f2:
+                sc_min_cr = st.number_input("Min Volume (₹ Cr)", min_value=1.0, max_value=20.0, value=4.0, step=0.5, key="sc_min_cr_flt")
+            with f3:
+                sc_rvv = st.number_input("Min RVV Multiple", min_value=5.0, max_value=50.0, value=10.0, step=1.0, key="sc_rvv_flt")
+            with f4:
+                sc_imp = st.slider("Min Impulse %", min_value=0.4, max_value=3.0, value=0.8, step=0.1, key="sc_imp_flt")
+            with f5:
+                st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
+                sc_52w = st.checkbox("⭐ 52W High Only", value=False, key="sc_52w_flt")
+
+            scan_now = st.button("🔍 Scan Stocks with Current Filters", type="primary", use_container_width=True, key="btn_apply_scan")
+
+        # Filter universe selection
+        if "Banking" in sel_univ:
+            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["Banking", "Financials"]]
+        elif "Consumer" in sel_univ:
+            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["FMCG", "Consumer", "Tech / Consumer", "Retail"]]
+        elif "Metals" in sel_univ:
+            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["Metals", "Metals & Mining", "Infrastructure", "Power"]]
+        else:
+            scan_universe = NSE_STOCK_UNIVERSE
+
+        # Run scanner when parameters change or scan button clicked
+        params_key = f"{sel_univ}_{sc_min_cr}_{sc_rvv}_{sc_imp}_{sc_52w}"
+        if scan_now or st.session_state.get("last_flt_key") != params_key:
+            with st.spinner("Scanning NSE stocks with selected filters..."):
                 signals = run_stock_momentum_scanner(
-                    universe=NSE_STOCK_UNIVERSE,
-                    min_impulse=0.008,
-                    min_value_cr=4.0,
-                    rvv_threshold=10.0,
-                    filter_52w_high=False
+                    universe=scan_universe,
+                    min_impulse=(sc_imp / 100.0),
+                    min_value_cr=float(sc_min_cr),
+                    rvv_threshold=float(sc_rvv),
+                    filter_52w_high=sc_52w
                 )
                 st.session_state["simple_scanner_signals"] = signals
+                st.session_state["last_flt_key"] = params_key
 
         signals = st.session_state.get("simple_scanner_signals", [])
 
         if not signals:
-            st.info("ℹ️ No stocks currently qualify for intraday trade open right now. The scanner is actively filtering for ₹4+ Cr institutional volume and breakout confirmation.")
+            st.info(f"ℹ️ No stocks currently qualify for intraday trade open with these filters (₹{sc_min_cr:.1f} Cr / {sc_rvv:.0f}x RVV / {sc_imp:.1f}% Impulse). Try lowering thresholds slightly.")
         else:
             st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now:**")
 
@@ -1988,6 +2018,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                     "Target 1 (1:3 RR)": f"₹{s.target1:,.2f}",
                     "Target 2 (1:4 RR)": f"₹{s.target2:,.2f}",
                     "Risk (Pts)": f"{risk_pts:.1f} pts",
+                    "Impulse Value": f"₹{s.impulse_value_cr:.1f} Cr ({s.rvv_multiple:.0f}x)",
                     "Setup Type": tag_52w,
                     "Sector": s.sector
                 })
@@ -1996,7 +2027,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 pd.DataFrame(table_rows),
                 use_container_width=True,
                 hide_index=True,
-                height=min(320, (len(table_rows) + 1) * 45)
+                height=min(400, (len(table_rows) + 1) * 45)
             )
 
 
