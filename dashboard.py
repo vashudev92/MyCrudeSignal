@@ -1999,23 +1999,6 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 height=min(320, (len(table_rows) + 1) * 45)
             )
 
-            # ── Individual Trade Action Cards ──
-            for s in signals:
-                risk_pts = max(1.0, s.entry_price - s.stop_loss)
-                tag_52w = " ⭐ (52-WEEK HIGH BREAKOUT)" if s.fifty_two_week_break else ""
-                with st.container(border=True):
-                    c1, c2, c3, c4, c5 = st.columns([1.8, 1.2, 1.2, 1.2, 1.2])
-                    with c1:
-                        st.markdown(f"**🟢 BUY {s.stock}**")
-                        st.caption(f"{s.stock_name} • {s.sector}{tag_52w}")
-                    with c2:
-                        st.metric("Entry Price", f"₹{s.entry_price:,.2f}")
-                    with c3:
-                        st.metric("Stop Loss", f"₹{s.stop_loss:,.2f}", delta=f"-{risk_pts:.1f} pts", delta_color="inverse")
-                    with c4:
-                        st.metric("🎯 Target 1 (1:3)", f"₹{s.target1:,.2f}", delta=f"+{3.0 * risk_pts:.1f} pts")
-                    with c5:
-                        st.metric("🚀 Target 2 (1:4)", f"₹{s.target2:,.2f}", delta=f"+{4.0 * risk_pts:.1f} pts")
 
 
 
