@@ -29,7 +29,7 @@
   },
   "SILVER": {
     "commodity_key": "SILVER",
-    "enabled": false,
+    "enabled": true,
     "title": "\ud83d\udcf0 Setup 1: High-Impact News Breakout (Tuned)",
     "strategy_model": "\ud83d\udcf0 High-Impact Energy News Breakout",
     "session_filter": "\ud83c\udf05 Full MCX Session (09:00 - 23:30 IST)",
@@ -58,7 +58,7 @@
   "NIFTY": {
     "commodity_key": "NIFTY",
     "enabled": false,
-    "title": "📈 Setup 1: Nifty Opening Drive Confluence",
+    "title": "\ud83d\udcc8 Setup 1: Nifty Opening Drive Confluence",
     "strategy_model": "\ud83c\udfaf RSI + MACD Confluence",
     "session_filter": "\ud83c\udf05 Morning Opening Drive (09:15 - 11:30 IST)",
     "sl_pts": 25.0,

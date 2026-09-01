@@ -1756,24 +1756,78 @@ SIGNAL AT: <b>{signal.timestamp}</b>
 
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # ── 📚 MANAGE SAVED STRATEGIES FOR THIS ASSET (EDIT / DELETE / DEPLOY) ──
-            asset_saved_strats = get_saved_strategies_for_asset(bt_comm_key)
-            with st.expander(f"📚 Manage Saved Strategies for {bt_spec.name} ({len(asset_saved_strats)} Saved)", expanded=False):
-                curr_active_cfg = get_active_strategy_config(bt_comm_key)
+            # ── 🌐 GLOBAL MULTI-ASSET LIVE DEPLOYMENT STATUS STRIP ────────
+            active_deployed_assets = []
+            for k_check in COMMODITY_REGISTRY.keys():
+                c_chk = get_active_strategy_config(k_check)
+                if c_chk.enabled:
+                    s_chk = get_commodity_spec(k_check)
+                    active_deployed_assets.append(f"<b>{s_chk.icon} {s_chk.name}</b> [{c_chk.title}]")
+
+            active_str = " &nbsp;•&nbsp; ".join(active_deployed_assets) if active_deployed_assets else "<i>None (All Muted)</i>"
+            st.markdown(f"""
+            <div style="background:#F0FDF4; border:1.5px solid #86EFAC; border-radius:6px; padding:8px 14px; margin-top:10px; margin-bottom:10px; font-size:0.75rem; color:#15803D;">
+                <b>📡 MULTI-ASSET 24/7 LIVE TELEGRAM BROADCAST ACTIVE FOR ({len(active_deployed_assets)} ASSETS):</b><br>
+                <div style="margin-top:4px; font-family:'JetBrains Mono',monospace; color:#0F172A; font-size:0.78rem;">{active_str}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # ── 📚 MANAGE SAVED STRATEGIES ACROSS ALL ASSETS ───────────────
+            with st.expander("📚 Manage Saved Strategies Library (All Assets: Crude, Silver, Gold, Nifty...)", expanded=True):
+                asset_tab_keys = {
+                    "CRUDEOIL": "🛢️ Crude Oil",
+                    "SILVER": "🥈 Silver Mini",
+                    "GOLD": "🪙 Gold Mini",
+                    "NATURALGAS": "🔥 Natural Gas",
+                    "NIFTY": "📈 Nifty 50",
+                    "BANKNIFTY": "🏦 Bank Nifty",
+                }
+                
+                default_tab_idx = list(asset_tab_keys.keys()).index(bt_comm_key) if bt_comm_key in asset_tab_keys else 0
+                
+                sel_lib_asset = st.radio(
+                    "Select Asset Library to View & Manage",
+                    list(asset_tab_keys.keys()),
+                    index=default_tab_idx,
+                    format_func=lambda k: f"{asset_tab_keys[k]} ({len(get_saved_strategies_for_asset(k))} Saved)",
+                    horizontal=True,
+                    key="manage_strat_lib_asset_radio"
+                )
+
+                lib_spec = get_commodity_spec(sel_lib_asset)
+                lib_cfg = get_active_strategy_config(sel_lib_asset)
+                asset_saved_strats = get_saved_strategies_for_asset(sel_lib_asset)
+
+                # Asset Live Alerts Toggle right here!
+                col_lib_hdr, col_lib_tg = st.columns([3.5, 1.5])
+                with col_lib_hdr:
+                    status_badge = '<span style="color:#059669; font-weight:800; font-size:0.80rem;">🟢 LIVE TELEGRAM SIGNALS ACTIVE</span>' if lib_cfg.enabled else '<span style="color:#DC2626; font-weight:800; font-size:0.80rem;">⏸️ TELEGRAM SIGNALS PAUSED</span>'
+                    st.markdown(f"#### {lib_spec.icon} {lib_spec.name} Strategy Library — {status_badge}", unsafe_allow_html=True)
+                with col_lib_tg:
+                    st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+                    tg_asset_val = st.toggle(
+                        f"Live Alerts for {lib_spec.name}",
+                        value=lib_cfg.enabled,
+                        key=f"lib_toggle_live_{sel_lib_asset}"
+                    )
+                    if tg_asset_val != lib_cfg.enabled:
+                        lib_cfg.enabled = tg_asset_val
+                        save_active_strategy_config(lib_cfg)
+                        st.rerun()
 
                 for s_item in asset_saved_strats:
                     s_id = s_item["id"]
-                    is_currently_active = (curr_active_cfg.title == s_item["name"])
-                    border_c = "#10B981" if is_currently_active else "#E2E8F0"
-                    bg_c = "#F0FDF4" if is_currently_active else "#F8FAFC"
-                    active_badge = '<span style="color:#059669; font-weight:800; font-size:0.70rem; margin-left:6px;">(⚡ ACTIVE LIVE)</span>' if is_currently_active else ''
+                    is_currently_active = (lib_cfg.title == s_item["name"])
+                    border_c = "#10B981" if (is_currently_active and lib_cfg.enabled) else ("#CBD5E1" if is_currently_active else "#E2E8F0")
+                    bg_c = "#F0FDF4" if (is_currently_active and lib_cfg.enabled) else ("#F8FAFC" if is_currently_active else "#FFFFFF")
+                    active_badge = '<span style="color:#059669; font-weight:800; font-size:0.72rem; margin-left:8px; background:#DCFCE7; padding:2px 6px; border-radius:4px;">(⚡ ACTIVE LIVE ON TELEGRAM)</span>' if (is_currently_active and lib_cfg.enabled) else ('<span style="color:#64748B; font-weight:700; font-size:0.72rem; margin-left:8px; background:#F1F5F9; padding:2px 6px; border-radius:4px;">(SELECTED BUT PAUSED)</span>' if is_currently_active else '')
                     
                     row_html = (
-                        f'<div style="background:{bg_c}; border:1px solid {border_c}; border-radius:6px; padding:6px 10px; margin-bottom:4px;">'
+                        f'<div style="background:{bg_c}; border:1px solid {border_c}; border-radius:6px; padding:8px 12px; margin-bottom:4px;">'
                         f'<div style="display:flex; justify-content:space-between; align-items:center;">'
                         f'<div>'
-                        f'<b style="font-size:0.82rem; color:#0F172A;">{s_item["name"]}</b>{active_badge}'
-                        f'<div style="font-size:0.70rem; color:#64748B; font-family:\'JetBrains Mono\',monospace; margin-top:2px;">'
+                        f'<b style="font-size:0.84rem; color:#0F172A;">{s_item["name"]}</b>{active_badge}'
+                        f'<div style="font-size:0.72rem; color:#64748B; font-family:\'JetBrains Mono\',monospace; margin-top:2px;">'
                         f'Model: <b>{s_item["model"]}</b> | SL: <b>{s_item["sl_pts"]:.0f} pts</b> | RR: <b>1:{s_item["t1_rr"]:.1f}</b> | Session: <b>{s_item["session"].split("(")[0].strip()}</b>'
                         f'</div>'
                         f'</div>'
@@ -1781,29 +1835,30 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                         f'</div>'
                     )
                     
-                    col_info, col_b1, col_b2, col_b3 = st.columns([5.2, 1.6, 1.4, 0.8])
+                    col_info, col_b1, col_b2, col_b3 = st.columns([5.0, 1.8, 1.4, 0.8])
                     with col_info:
                         st.markdown(row_html, unsafe_allow_html=True)
                     with col_b1:
-                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
-                        if not is_currently_active:
-                            if st.button("⚡ Deploy", key=f"btn_dep_{bt_comm_key}_{s_id}", use_container_width=True):
-                                deploy_strategy_to_asset(bt_comm_key, s_id)
+                        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+                        if not is_currently_active or not lib_cfg.enabled:
+                            if st.button("⚡ Deploy Live", key=f"btn_dep_{sel_lib_asset}_{s_id}", use_container_width=True, type="primary"):
+                                deploy_strategy_to_asset(sel_lib_asset, s_id)
+                                st.success(f"✅ Deployed for {lib_spec.name}! (Other active assets remain active!)")
                                 st.rerun()
                         else:
-                            st.button("✅ Active", disabled=True, key=f"btn_act_dis_{bt_comm_key}_{s_id}", use_container_width=True)
+                            st.button("✅ Active Live", disabled=True, key=f"btn_act_dis_{sel_lib_asset}_{s_id}", use_container_width=True)
                     with col_b2:
-                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
                         with st.popover("✏️ Rename", use_container_width=True):
-                            new_name_val = st.text_input("New Name", value=s_item["name"], key=f"ren_inp_{bt_comm_key}_{s_id}")
-                            if st.button("Save", key=f"btn_save_ren_{bt_comm_key}_{s_id}", type="primary"):
-                                rename_custom_strategy(bt_comm_key, s_id, new_name_val)
+                            new_name_val = st.text_input("New Name", value=s_item["name"], key=f"ren_inp_{sel_lib_asset}_{s_id}")
+                            if st.button("Save", key=f"btn_save_ren_{sel_lib_asset}_{s_id}", type="primary"):
+                                rename_custom_strategy(sel_lib_asset, s_id, new_name_val)
                                 st.success("Renamed!")
                                 st.rerun()
                     with col_b3:
-                        st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
-                        if st.button("🗑️", key=f"btn_del_{bt_comm_key}_{s_id}", use_container_width=True, help="Delete strategy"):
-                            delete_custom_strategy(bt_comm_key, s_id)
+                        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+                        if st.button("🗑️", key=f"btn_del_{sel_lib_asset}_{s_id}", use_container_width=True, help="Delete strategy"):
+                            delete_custom_strategy(sel_lib_asset, s_id)
                             st.rerun()
 
             st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
