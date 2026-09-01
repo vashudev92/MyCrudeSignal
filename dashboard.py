@@ -1945,241 +1945,78 @@ SIGNAL AT: <b>{signal.timestamp}</b>
 
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 4: INSTITUTIONAL NSE/BSE STOCK IMPULSE & BREAKOUT SCANNER
+    # TAB 4: NSE INTRADAY STOCKS SCANNER (ACTIONABLE TRADE LIST ONLY)
     # ════════════════════════════════════════════════════════════════════════
     with tab_scanner:
-        st.markdown(textwrap.dedent("""
-<div class="mini-card" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px 16px; margin-bottom:12px;">
-    <div style="font-size:0.95rem; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:8px;">
-        <span>🚀</span> <span>INSTITUTIONAL NSE/BSE STOCK VOLUME IMPULSE & CONSOLIDATION BREAKOUT SCANNER</span>
-    </div>
-    <div style="font-size:0.75rem; color:#64748B; font-family:'JetBrains Mono',monospace; margin-top:4px;">
-        Scans liquid NSE universe for institutional volume footprint: ₹4+ Cr candle, 10x RVV, pre-compression, volume dry-up flag, and 1:3 / 1:4 breakout.
-    </div>
-</div>
-""").strip(), unsafe_allow_html=True)
+        col_hdr, col_btn = st.columns([3.5, 1.5])
+        with col_hdr:
+            st.markdown("### 🚀 NSE Intraday Stock Scanner")
+            st.caption("Institutional Volume & Breakout Algorithm • Real-Time Intraday Trade Candidates")
+        with col_btn:
+            st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+            scan_now = st.button("🔍 Scan All NSE Stocks Now", type="primary", use_container_width=True, key="btn_simple_scan_now")
 
-        st.markdown(textwrap.dedent("""
-<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; font-family:'JetBrains Mono',monospace; font-size:0.68rem;">
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">1. 💧 Liquidity Filter</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">2. ⚡ Traded Value ≥ ₹4 Cr & RVV ≥ 10x</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">3. 🚀 Impulse ≥ 0.8%</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">4. 🧱 Pre-Compression</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">5. ⏳ Flag & Vol Dry-Up</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">6. 🌊 3x Vol Expansion</span>
-    <span style="color:#94A3B8;">➔</span>
-    <span style="background:#F0FDF4; color:#15803D; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #86EFAC;">7. 🎯 1:3 & 1:4 Targets</span>
-</div>
-""").strip(), unsafe_allow_html=True)
-
-        sc_c1, sc_c2, sc_c3, sc_c4, sc_c5 = st.columns([1.5, 1.1, 1.1, 1.1, 1.2])
-        with sc_c1:
-            universe_options = [
-                "🏛️ All Liquid NSE Stocks (38 Universe)",
-                "🏦 Nifty Heavyweights & Banking",
-                "⚡ High-Growth Consumer & Tech",
-                "🏭 Industrials & Metals"
-            ]
-            sel_univ = st.selectbox("Stock Universe", universe_options, index=0, key="sc_universe_sel")
-        with sc_c2:
-            sc_min_cr = st.number_input("Min Traded Value (₹ Cr)", min_value=1.0, max_value=20.0, value=4.0, step=0.5, key="sc_min_val")
-        with sc_c3:
-            sc_rvv = st.number_input("Min RVV Multiplier", min_value=5.0, max_value=50.0, value=10.0, step=1.0, key="sc_rvv_mult")
-        with sc_c4:
-            sc_imp = st.slider("Min Impulse %", min_value=0.4, max_value=3.0, value=0.8, step=0.1, key="sc_imp_slider")
-        with sc_c5:
-            st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
-            sc_52w_only = st.checkbox("⭐ 52W Break Only", value=False, key="sc_52w_chk")
-
-        btn_c1, btn_c2 = st.columns([2.0, 3.0])
-        with btn_c1:
-            run_scan_btn = st.button("🔍 Scan All NSE Stocks for Institutional Setups", type="primary", use_container_width=True, key="btn_run_stock_scan")
-
-        if "Banking" in sel_univ:
-            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["Banking", "Financials"]]
-        elif "Consumer" in sel_univ:
-            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["FMCG", "Consumer", "Tech / Consumer", "Retail"]]
-        elif "Metals" in sel_univ:
-            scan_universe = [s for s in NSE_STOCK_UNIVERSE if s["sector"] in ["Metals", "Metals & Mining", "Infrastructure", "Power"]]
-        else:
-            scan_universe = NSE_STOCK_UNIVERSE
-
-        if run_scan_btn or "last_scanner_signals" not in st.session_state:
-            with st.spinner("Scanning 1-Minute OHLCV charts across NSE universe..."):
-                signals_detected = run_stock_momentum_scanner(
-                    universe=scan_universe,
-                    min_impulse=(sc_imp / 100.0),
-                    min_value_cr=float(sc_min_cr),
-                    rvv_threshold=float(sc_rvv),
-                    filter_52w_high=sc_52w_only
+        # Scan NSE stocks on button click or load
+        if scan_now or "simple_scanner_signals" not in st.session_state:
+            with st.spinner("Scanning NSE stocks as per algorithm criteria..."):
+                signals = run_stock_momentum_scanner(
+                    universe=NSE_STOCK_UNIVERSE,
+                    min_impulse=0.008,
+                    min_value_cr=4.0,
+                    rvv_threshold=10.0,
+                    filter_52w_high=False
                 )
-                st.session_state["last_scanner_signals"] = signals_detected
+                st.session_state["simple_scanner_signals"] = signals
 
-        signals_detected = st.session_state.get("last_scanner_signals", [])
+        signals = st.session_state.get("simple_scanner_signals", [])
 
-        m_c1, m_c2, m_c3, m_c4, m_c5 = st.columns(5)
-        with m_c1:
-            st.metric("Total Stocks Scanned", f"{len(scan_universe)} Stocks")
-        with m_c2:
-            st.metric("Setups Detected", f"{len(signals_detected)} Setups", delta="Quality Filtered" if signals_detected else "Zero False Signals")
-        with m_c3:
-            avg_imp = f"₹{np.mean([s.impulse_value_cr for s in signals_detected]):.1f} Cr" if signals_detected else "—"
-            st.metric("Avg Impulse Value", avg_imp)
-        with m_c4:
-            st.metric("Risk : Reward", "1:3 & 1:4", delta="Fixed Institutional Exits")
-        with m_c5:
-            st.metric("Liquidity Threshold", f"₹{sc_min_cr:.0f} Cr / 1-Min", delta=f"{sc_rvv:.0f}x Median")
-
-        st.divider()
-
-        st.markdown(f"#### 🎯 DETECTED INSTITUTIONAL BREAKOUT CANDIDATES ({len(signals_detected)} FOUND)")
-
-        if not signals_detected:
-            st.info("ℹ️ No stocks currently meet the strict 8-stage institutional criteria with these parameters. Lower the minimum impulse or traded value threshold to broaden scan scope.")
+        if not signals:
+            st.info("ℹ️ No stocks currently qualify for intraday trade open right now. The scanner is actively filtering for ₹4+ Cr institutional volume and breakout confirmation.")
         else:
-            for s in signals_detected:
-                star_rating = "⭐" * s.confidence_score
-                tag_52w = " ⭐ (52W HIGH BREAKOUT)" if s.fifty_two_week_break else ""
+            st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now:**")
+
+            # ── Clean Table of Open Trades ──
+            table_rows = []
+            for s in signals:
                 risk_pts = max(1.0, s.entry_price - s.stop_loss)
-                
+                tag_52w = "⭐ 52W Breakout" if s.fifty_two_week_break else "Standard Breakout"
+                table_rows.append({
+                    "Stock": s.stock,
+                    "Action": "🟢 BUY",
+                    "Entry (₹)": f"₹{s.entry_price:,.2f}",
+                    "Stop Loss (₹)": f"₹{s.stop_loss:,.2f}",
+                    "Target 1 (1:3 RR)": f"₹{s.target1:,.2f}",
+                    "Target 2 (1:4 RR)": f"₹{s.target2:,.2f}",
+                    "Risk (Pts)": f"{risk_pts:.1f} pts",
+                    "Setup Type": tag_52w,
+                    "Sector": s.sector
+                })
+
+            st.dataframe(
+                pd.DataFrame(table_rows),
+                use_container_width=True,
+                hide_index=True,
+                height=min(320, (len(table_rows) + 1) * 45)
+            )
+
+            # ── Individual Trade Action Cards ──
+            for s in signals:
+                risk_pts = max(1.0, s.entry_price - s.stop_loss)
+                tag_52w = " ⭐ (52-WEEK HIGH BREAKOUT)" if s.fifty_two_week_break else ""
                 with st.container(border=True):
-                    # Header Row
-                    hdr_l, hdr_r = st.columns([3.5, 2.5])
-                    with hdr_l:
-                        st.markdown(f"### 🟢 **{s.stock}** — `{s.stock_name}` <span style='font-size:0.82rem; color:#64748B;'>({s.sector})</span> <span style='color:#B45309; font-weight:800; font-size:0.80rem;'>{tag_52w}</span>", unsafe_allow_html=True)
-                    with hdr_r:
-                        st.markdown(f"<div style='text-align:right; font-family:monospace; font-size:0.95rem; font-weight:800; color:#059669; margin-top:6px;'>LTP: ₹{s.current_price:,.2f} &nbsp;|&nbsp; Score: {star_rating}</div>", unsafe_allow_html=True)
-
-                    # 6 KPI Metric Columns
-                    k1, k2, k3, k4, k5, k6 = st.columns(6)
-                    with k1:
-                        st.metric("Impulse Value", f"₹{s.impulse_value_cr:.2f} Cr", delta=f"{s.rvv_multiple:.0f}x RVV")
-                    with k2:
-                        st.metric("Impulse Move", f"+{s.impulse_move_pct:.2f}%", delta="Expansion")
-                    with k3:
-                        st.metric("Breakout Entry", f"₹{s.entry_price:,.2f}")
-                    with k4:
+                    c1, c2, c3, c4, c5 = st.columns([1.8, 1.2, 1.2, 1.2, 1.2])
+                    with c1:
+                        st.markdown(f"**🟢 BUY {s.stock}**")
+                        st.caption(f"{s.stock_name} • {s.sector}{tag_52w}")
+                    with c2:
+                        st.metric("Entry Price", f"₹{s.entry_price:,.2f}")
+                    with c3:
                         st.metric("Stop Loss", f"₹{s.stop_loss:,.2f}", delta=f"-{risk_pts:.1f} pts", delta_color="inverse")
-                    with k5:
-                        st.metric("Target 1 (1:3 RR)", f"₹{s.target1:,.2f}", delta=f"+{3.0 * risk_pts:.1f} pts")
-                    with k6:
-                        st.metric("Target 2 (1:4 RR)", f"₹{s.target2:,.2f}", delta=f"+{4.0 * risk_pts:.1f} pts")
+                    with c4:
+                        st.metric("🎯 Target 1 (1:3)", f"₹{s.target1:,.2f}", delta=f"+{3.0 * risk_pts:.1f} pts")
+                    with c5:
+                        st.metric("🚀 Target 2 (1:4)", f"₹{s.target2:,.2f}", delta=f"+{4.0 * risk_pts:.1f} pts")
 
-                    with st.expander(f"📈 View 1-Minute Candlestick & Volume Footprint for {s.stock}", expanded=False):
-                        if s.chart_df is not None and not s.chart_df.empty:
-                            fig_stock = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3])
-                            fig_stock.add_trace(go.Candlestick(
-                                x=s.chart_df["Time"],
-                                open=s.chart_df["Open"],
-                                high=s.chart_df["High"],
-                                low=s.chart_df["Low"],
-                                close=s.chart_df["Close"],
-                                name="Price"
-                            ), row=1, col=1)
-
-                            fig_stock.add_hline(y=s.entry_price, line_color="#3B82F6", line_dash="dash", annotation_text="Entry", row=1, col=1)
-                            fig_stock.add_hline(y=s.stop_loss, line_color="#DC2626", line_dash="dash", annotation_text="SL", row=1, col=1)
-                            fig_stock.add_hline(y=s.target1, line_color="#10B981", line_dash="dash", annotation_text="1:3 T1", row=1, col=1)
-                            fig_stock.add_hline(y=s.target2, line_color="#059669", line_dash="dash", annotation_text="1:4 T2", row=1, col=1)
-
-                            colors = ['#10B981' if c >= o else '#EF4444' for o, c in zip(s.chart_df['Open'], s.chart_df['Close'])]
-                            fig_stock.add_trace(go.Bar(
-                                x=s.chart_df["Time"],
-                                y=s.chart_df["Traded_Value_Cr"],
-                                marker_color=colors,
-                                name="Traded Value (₹ Cr)"
-                            ), row=2, col=1)
-
-                            fig_stock.update_layout(
-                                height=320,
-                                xaxis_rangeslider_visible=False,
-                                paper_bgcolor="#FFFFFF",
-                                plot_bgcolor="#FFFFFF",
-                                margin=dict(l=10, r=10, t=10, b=10),
-                                font=dict(family="JetBrains Mono", size=9)
-                            )
-                            st.plotly_chart(fig_stock, use_container_width=True)
-
-        st.divider()
-
-        # ── BACKTESTING AUDIT LAB FOR THIS SCANNER ──
-        st.markdown("### 📊 SCANNER BACKTEST AUDIT LAB (PORTFOLIO SIMULATION)")
-
-        bt_c1, bt_c2, bt_c3, bt_c4 = st.columns([1.2, 1.2, 1.2, 1.4])
-        with bt_c1:
-            sc_bt_days = st.selectbox("Backtest Period", [15, 30, 60, 90], index=1, format_func=lambda x: f"Past {x} Days", key="sc_bt_days_sel")
-        with bt_c2:
-            sc_bt_cap = st.number_input("Starting Capital (₹)", min_value=100000, max_value=5000000, value=500000, step=50000, key="sc_bt_cap_inp")
-        with bt_c3:
-            sc_bt_risk = st.number_input("Risk Per Trade (₹)", min_value=1000, max_value=50000, value=5000, step=500, key="sc_bt_risk_inp")
-        with bt_c4:
-            st.markdown("<div style='margin-top:24px;'></div>", unsafe_allow_html=True)
-            run_bt_btn = st.button("🚀 Run Scanner Backtest", type="secondary", use_container_width=True, key="btn_run_scanner_backtest")
-
-        if run_bt_btn or "sc_bt_report" not in st.session_state:
-            with st.spinner("Simulating multi-stock scanner trades across trading days..."):
-                sc_report = backtest_stock_momentum_scanner(
-                    universe=scan_universe,
-                    days=int(sc_bt_days),
-                    initial_capital=float(sc_bt_cap),
-                    risk_per_trade_rs=float(sc_bt_risk),
-                    min_impulse=(sc_imp / 100.0),
-                    min_value_cr=float(sc_min_cr),
-                    rvv_threshold=float(sc_rvv)
-                )
-                st.session_state["sc_bt_report"] = sc_report
-
-        sc_report = st.session_state.get("sc_bt_report")
-
-        if sc_report:
-            with st.container(border=True):
-                b1, b2, b3, b4, b5, b6 = st.columns(6)
-                with b1:
-                    st.metric("Win Rate", f"{sc_report.win_rate:.1f}%", delta=f"{sc_report.winning_trades}W / {sc_report.losing_trades}L")
-                with b2:
-                    st.metric("Net Profit", f"₹{sc_report.net_pnl_rs:,.0f}", delta=f"Gross ₹{sc_report.gross_pnl_rs:,.0f}")
-                with b3:
-                    st.metric("Total Return", f"+{sc_report.total_return_pct:.1f}%", delta=f"Base ₹{sc_bt_cap:,.0f}")
-                with b4:
-                    st.metric("Profit Factor", f"{sc_report.profit_factor:.2f}", delta="1:3 & 1:4 RR")
-                with b5:
-                    st.metric("Max Drawdown", f"-₹{sc_report.max_drawdown_rs:,.0f}", delta=f"-{sc_report.max_drawdown_pct:.1f}%", delta_color="inverse")
-                with b6:
-                    st.metric("Total Trades", f"{sc_report.total_trades}", delta="Quality Setups")
-
-
-                if not sc_report.equity_curve.empty:
-                    fig_sc_eq = go.Figure()
-                    fig_sc_eq.add_trace(go.Scatter(
-                        x=sc_report.equity_curve["Date"],
-                        y=sc_report.equity_curve["Capital"],
-                        mode="lines+markers",
-                        name="Capital Balance (₹)",
-                        line=dict(color="#059669", width=2.2),
-                        fill="tozeroy",
-                        fillcolor="rgba(16, 185, 129, 0.08)"
-                    ))
-                    fig_sc_eq.add_hline(y=float(sc_bt_cap), line_color="#94A3B8", line_dash="dash")
-                    fig_sc_eq.update_layout(
-                        height=280,
-                        title="Stock Scanner Capital Growth Curve (₹)",
-                        paper_bgcolor="#FFFFFF",
-                        plot_bgcolor="#FFFFFF",
-                        font=dict(family="JetBrains Mono", size=9),
-                        margin=dict(l=10, r=10, t=30, b=10),
-                        yaxis=dict(title="Capital (₹)", showgrid=True, gridcolor="#F1F5F9"),
-                        xaxis=dict(showgrid=True, gridcolor="#F1F5F9")
-                    )
-                    st.plotly_chart(fig_sc_eq, use_container_width=True)
-
-                if not sc_report.trade_journal.empty:
-                    st.markdown("##### 📜 Audited Scanner Trades Journal")
-                    st.dataframe(sc_report.trade_journal, use_container_width=True, hide_index=True, height=280)
 
 
 if __name__ == "__main__":
