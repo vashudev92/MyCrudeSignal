@@ -54,6 +54,7 @@ from stock_momentum_scanner import (
     ScannerBacktestReport
 )
 import os
+import textwrap
 
 IST = pytz.timezone(IST_TIMEZONE)
 
@@ -1947,34 +1948,34 @@ SIGNAL AT: <b>{signal.timestamp}</b>
     # TAB 4: INSTITUTIONAL NSE/BSE STOCK IMPULSE & BREAKOUT SCANNER
     # ════════════════════════════════════════════════════════════════════════
     with tab_scanner:
-        st.markdown("""
-        <div class="mini-card" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px 16px; margin-bottom:12px;">
-            <div style="font-size:0.95rem; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:8px;">
-                <span>🚀</span> <span>INSTITUTIONAL NSE/BSE STOCK VOLUME IMPULSE & CONSOLIDATION BREAKOUT SCANNER</span>
-            </div>
-            <div style="font-size:0.75rem; color:#64748B; font-family:'JetBrains Mono',monospace; margin-top:4px;">
-                Scans liquid NSE universe for institutional volume footprint: ₹4+ Cr candle, 10x RVV, pre-compression, volume dry-up flag, and 1:3 / 1:4 breakout.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(textwrap.dedent("""
+<div class="mini-card" style="background:#F8FAFC; border:1px solid #E2E8F0; padding:12px 16px; margin-bottom:12px;">
+    <div style="font-size:0.95rem; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:8px;">
+        <span>🚀</span> <span>INSTITUTIONAL NSE/BSE STOCK VOLUME IMPULSE & CONSOLIDATION BREAKOUT SCANNER</span>
+    </div>
+    <div style="font-size:0.75rem; color:#64748B; font-family:'JetBrains Mono',monospace; margin-top:4px;">
+        Scans liquid NSE universe for institutional volume footprint: ₹4+ Cr candle, 10x RVV, pre-compression, volume dry-up flag, and 1:3 / 1:4 breakout.
+    </div>
+</div>
+""").strip(), unsafe_allow_html=True)
 
-        st.markdown("""
-        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; font-family:'JetBrains Mono',monospace; font-size:0.68rem;">
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">1. 💧 Liquidity Filter</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">2. ⚡ Traded Value ≥ ₹4 Cr & RVV ≥ 10x</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">3. 🚀 Impulse ≥ 0.8%</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">4. 🧱 Pre-Compression</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">5. ⏳ Flag & Vol Dry-Up</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">6. 🌊 3x Vol Expansion</span>
-            <span style="color:#94A3B8;">➔</span>
-            <span style="background:#F0FDF4; color:#15803D; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #86EFAC;">7. 🎯 1:3 & 1:4 Targets</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(textwrap.dedent("""
+<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; font-family:'JetBrains Mono',monospace; font-size:0.68rem;">
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">1. 💧 Liquidity Filter</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">2. ⚡ Traded Value ≥ ₹4 Cr & RVV ≥ 10x</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">3. 🚀 Impulse ≥ 0.8%</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">4. 🧱 Pre-Compression</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">5. ⏳ Flag & Vol Dry-Up</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#EFF6FF; color:#1D4ED8; padding:3px 8px; border-radius:4px; border:1px solid #BFDBFE;">6. 🌊 3x Vol Expansion</span>
+    <span style="color:#94A3B8;">➔</span>
+    <span style="background:#F0FDF4; color:#15803D; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #86EFAC;">7. 🎯 1:3 & 1:4 Targets</span>
+</div>
+""").strip(), unsafe_allow_html=True)
 
         sc_c1, sc_c2, sc_c3, sc_c4, sc_c5 = st.columns([1.5, 1.1, 1.1, 1.1, 1.2])
         with sc_c1:
@@ -2046,46 +2047,47 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 tag_52w = '<span style="background:#FEF3C7; color:#B45309; padding:2px 6px; border-radius:3px; font-weight:700; font-size:0.70rem; margin-left:8px;">⭐ 52-WEEK HIGH BREAKOUT</span>' if s.fifty_two_week_break else ''
                 risk_pts = s.entry_price - s.stop_loss
                 
-                st.markdown(f"""
-                <div style="background:#FFFFFF; border:1.5px solid #10B981; border-radius:8px; padding:12px 16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(16,185,129,0.06);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <div>
-                            <span style="font-size:1.05rem; font-weight:800; color:#0F172A;">{s.stock}</span>
-                            <span style="color:#64748B; font-size:0.80rem; margin-left:6px;">({s.stock_name} • {s.sector})</span>
-                            {tag_52w}
-                        </div>
-                        <div style="font-family:'JetBrains Mono',monospace; font-size:0.85rem; font-weight:700; color:#059669;">
-                            LTP: ₹{s.current_price:,.2f} | Score: {star_rating}
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;">
-                        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
-                            <div style="color:#64748B; font-size:0.68rem;">IMPULSE VALUE</div>
-                            <b>₹{s.impulse_value_cr:.2f} Cr ({s.rvv_multiple:.0f}x RVV)</b>
-                        </div>
-                        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
-                            <div style="color:#64748B; font-size:0.68rem;">IMPULSE MOVE</div>
-                            <b style="color:#059669;">+{s.impulse_move_pct:.2f}%</b>
-                        </div>
-                        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
-                            <div style="color:#64748B; font-size:0.68rem;">BREAKOUT ENTRY</div>
-                            <b>₹{s.entry_price:,.2f}</b>
-                        </div>
-                        <div style="background:#FFF1F2; padding:6px 8px; border-radius:4px; border:1px solid #FECDD3;">
-                            <div style="color:#DC2626; font-size:0.68rem;">STOP LOSS</div>
-                            <b style="color:#DC2626;">₹{s.stop_loss:,.2f} (-{risk_pts:.1f} pts)</b>
-                        </div>
-                        <div style="background:#F0FDF4; padding:6px 8px; border-radius:4px; border:1px solid #BBF7D0;">
-                            <div style="color:#15803D; font-size:0.68rem;">🎯 TARGET 1 (1:3 RR)</div>
-                            <b style="color:#15803D;">₹{s.target1:,.2f} (+{3.0 * risk_pts:.1f} pts)</b>
-                        </div>
-                        <div style="background:#ECFDF5; padding:6px 8px; border-radius:4px; border:1px solid #A7F3D0;">
-                            <div style="color:#047857; font-size:0.68rem;">🚀 TARGET 2 (1:4 RR)</div>
-                            <b style="color:#047857;">₹{s.target2:,.2f} (+{4.0 * risk_pts:.1f} pts)</b>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                card_html = textwrap.dedent(f"""
+<div style="background:#FFFFFF; border:1.5px solid #10B981; border-radius:8px; padding:12px 16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(16,185,129,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>
+            <span style="font-size:1.05rem; font-weight:800; color:#0F172A;">{s.stock}</span>
+            <span style="color:#64748B; font-size:0.80rem; margin-left:6px;">({s.stock_name} • {s.sector})</span>
+            {tag_52w}
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:0.85rem; font-weight:700; color:#059669;">
+            LTP: ₹{s.current_price:,.2f} | Score: {star_rating}
+        </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;">
+        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
+            <div style="color:#64748B; font-size:0.68rem;">IMPULSE VALUE</div>
+            <b>₹{s.impulse_value_cr:.2f} Cr ({s.rvv_multiple:.0f}x RVV)</b>
+        </div>
+        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
+            <div style="color:#64748B; font-size:0.68rem;">IMPULSE MOVE</div>
+            <b style="color:#059669;">+{s.impulse_move_pct:.2f}%</b>
+        </div>
+        <div style="background:#F8FAFC; padding:6px 8px; border-radius:4px; border:1px solid #E2E8F0;">
+            <div style="color:#64748B; font-size:0.68rem;">BREAKOUT ENTRY</div>
+            <b>₹{s.entry_price:,.2f}</b>
+        </div>
+        <div style="background:#FFF1F2; padding:6px 8px; border-radius:4px; border:1px solid #FECDD3;">
+            <div style="color:#DC2626; font-size:0.68rem;">STOP LOSS</div>
+            <b style="color:#DC2626;">₹{s.stop_loss:,.2f} (-{risk_pts:.1f} pts)</b>
+        </div>
+        <div style="background:#F0FDF4; padding:6px 8px; border-radius:4px; border:1px solid #BBF7D0;">
+            <div style="color:#15803D; font-size:0.68rem;">🎯 TARGET 1 (1:3 RR)</div>
+            <b style="color:#15803D;">₹{s.target1:,.2f} (+{3.0 * risk_pts:.1f} pts)</b>
+        </div>
+        <div style="background:#ECFDF5; padding:6px 8px; border-radius:4px; border:1px solid #A7F3D0;">
+            <div style="color:#047857; font-size:0.68rem;">🚀 TARGET 2 (1:4 RR)</div>
+            <b style="color:#047857;">₹{s.target2:,.2f} (+{4.0 * risk_pts:.1f} pts)</b>
+        </div>
+    </div>
+</div>
+""").strip()
+                st.markdown(card_html, unsafe_allow_html=True)
 
                 with st.expander(f"📈 View 1-Minute Candlestick & Volume Footprint for {s.stock}", expanded=False):
                     if s.chart_df is not None and not s.chart_df.empty:
@@ -2125,7 +2127,9 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         st.divider()
 
         # ── BACKTESTING AUDIT LAB FOR THIS SCANNER ──
-        st.markdown('<div class="mini-card-header">📊 SCANNER BACKTEST AUDIT LAB (PORTFOLIO SIMULATION)</div>', unsafe_allow_html=True)
+        st.markdown(textwrap.dedent("""
+<div class="mini-card-header">📊 SCANNER BACKTEST AUDIT LAB (PORTFOLIO SIMULATION)</div>
+""").strip(), unsafe_allow_html=True)
 
         bt_c1, bt_c2, bt_c3, bt_c4 = st.columns([1.2, 1.2, 1.2, 1.4])
         with bt_c1:
@@ -2154,40 +2158,41 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         sc_report = st.session_state.get("sc_bt_report")
 
         if sc_report:
-            st.markdown(f"""
-            <div class="scorecard-grid">
-                <div class="scorecard">
-                    <div class="scorecard-lbl">WIN RATE (%)</div>
-                    <div class="scorecard-val {'positive' if sc_report.win_rate >= 50 else 'negative'}">{sc_report.win_rate:.1f}%</div>
-                    <div class="scorecard-sub">{sc_report.winning_trades} Wins / {sc_report.losing_trades} Losses</div>
-                </div>
-                <div class="scorecard">
-                    <div class="scorecard-lbl">NET PROFIT (₹)</div>
-                    <div class="scorecard-val {'positive' if sc_report.net_pnl_rs >= 0 else 'negative'}">₹{sc_report.net_pnl_rs:,.0f}</div>
-                    <div class="scorecard-sub">Gross: ₹{sc_report.gross_pnl_rs:,.0f}</div>
-                </div>
-                <div class="scorecard">
-                    <div class="scorecard-lbl">TOTAL RETURN (%)</div>
-                    <div class="scorecard-val {'positive' if sc_report.total_return_pct >= 0 else 'negative'}">+{sc_report.total_return_pct:.1f}%</div>
-                    <div class="scorecard-sub">On ₹{sc_bt_cap:,.0f} Base</div>
-                </div>
-                <div class="scorecard">
-                    <div class="scorecard-lbl">PROFIT FACTOR</div>
-                    <div class="scorecard-val positive">{sc_report.profit_factor:.2f}</div>
-                    <div class="scorecard-sub">1:3 & 1:4 Payout</div>
-                </div>
-                <div class="scorecard">
-                    <div class="scorecard-lbl">MAX DRAWDOWN (₹)</div>
-                    <div class="scorecard-val negative">-₹{sc_report.max_drawdown_rs:,.0f}</div>
-                    <div class="scorecard-sub">{sc_report.max_drawdown_pct:.1f}% of Peak</div>
-                </div>
-                <div class="scorecard">
-                    <div class="scorecard-lbl">TOTAL EXECUTED TRADES</div>
-                    <div class="scorecard-val neutral">{sc_report.total_trades}</div>
-                    <div class="scorecard-sub">Strict Quality Setups</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            scorecard_html = textwrap.dedent(f"""
+<div class="scorecard-grid">
+    <div class="scorecard">
+        <div class="scorecard-lbl">WIN RATE (%)</div>
+        <div class="scorecard-val {'positive' if sc_report.win_rate >= 50 else 'negative'}">{sc_report.win_rate:.1f}%</div>
+        <div class="scorecard-sub">{sc_report.winning_trades} Wins / {sc_report.losing_trades} Losses</div>
+    </div>
+    <div class="scorecard">
+        <div class="scorecard-lbl">NET PROFIT (₹)</div>
+        <div class="scorecard-val {'positive' if sc_report.net_pnl_rs >= 0 else 'negative'}">₹{sc_report.net_pnl_rs:,.0f}</div>
+        <div class="scorecard-sub">Gross: ₹{sc_report.gross_pnl_rs:,.0f}</div>
+    </div>
+    <div class="scorecard">
+        <div class="scorecard-lbl">TOTAL RETURN (%)</div>
+        <div class="scorecard-val {'positive' if sc_report.total_return_pct >= 0 else 'negative'}">+{sc_report.total_return_pct:.1f}%</div>
+        <div class="scorecard-sub">On ₹{sc_bt_cap:,.0f} Base</div>
+    </div>
+    <div class="scorecard">
+        <div class="scorecard-lbl">PROFIT FACTOR</div>
+        <div class="scorecard-val positive">{sc_report.profit_factor:.2f}</div>
+        <div class="scorecard-sub">1:3 & 1:4 Payout</div>
+    </div>
+    <div class="scorecard">
+        <div class="scorecard-lbl">MAX DRAWDOWN (₹)</div>
+        <div class="scorecard-val negative">-₹{sc_report.max_drawdown_rs:,.0f}</div>
+        <div class="scorecard-sub">{sc_report.max_drawdown_pct:.1f}% of Peak</div>
+    </div>
+    <div class="scorecard">
+        <div class="scorecard-lbl">TOTAL EXECUTED TRADES</div>
+        <div class="scorecard-val neutral">{sc_report.total_trades}</div>
+        <div class="scorecard-sub">Strict Quality Setups</div>
+    </div>
+</div>
+""").strip()
+            st.markdown(scorecard_html, unsafe_allow_html=True)
 
             if not sc_report.equity_curve.empty:
                 fig_sc_eq = go.Figure()
