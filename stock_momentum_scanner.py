@@ -406,7 +406,20 @@ def run_stock_momentum_scanner(
                 time=breakout.time
             ))
 
-    return signals
+@dataclass
+class ScannerBacktestReport:
+    total_trades: int = 0
+    winning_trades: int = 0
+    losing_trades: int = 0
+    win_rate: float = 0.0
+    gross_pnl_rs: float = 0.0
+    net_pnl_rs: float = 0.0
+    total_return_pct: float = 0.0
+    profit_factor: float = 0.0
+    max_drawdown_rs: float = 0.0
+    max_drawdown_pct: float = 0.0
+    trade_journal: pd.DataFrame = field(default_factory=pd.DataFrame)
+    equity_curve: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def backtest_stock_momentum_scanner(
