@@ -2042,7 +2042,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         # Run scanner when parameters change or scan button clicked
         params_key = f"{sel_univ}_{sc_min_cr}_{sc_rvv}_{sc_imp}_{sc_52w}"
         if scan_now or st.session_state.get("last_flt_key") != params_key:
-            with st.spinner("Scanning NSE stocks with selected filters..."):
+            with st.spinner("Connecting to Upstox and scanning live 1-minute exchange candles across NSE universe..."):
                 signals = run_stock_momentum_scanner(
                     universe=scan_universe,
                     min_impulse=(sc_imp / 100.0),
@@ -2052,13 +2052,17 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 )
                 st.session_state["simple_scanner_signals"] = signals
                 st.session_state["last_flt_key"] = params_key
+                st.session_state["last_scan_time"] = datetime.now(IST).strftime("%H:%M:%S")
 
         signals = st.session_state.get("simple_scanner_signals", [])
+        last_t = st.session_state.get("last_scan_time", datetime.now(IST).strftime("%H:%M:%S"))
+
+        st.caption(f"🕒 **Last Scanned:** `{last_t} IST` &nbsp;|&nbsp; 📡 **Feed:** Real Upstox 1-Minute Exchange Candles &nbsp;|&nbsp; 🏛️ **Scanned Basket:** {len(scan_universe)} Stocks")
 
         if not signals:
             st.info(f"ℹ️ **No stocks currently qualify for intraday trade open** with current parameters (Traded Value ≥ ₹{sc_min_cr:.1f} Cr / RVV ≥ {sc_rvv:.0f}x / Impulse ≥ {sc_imp:.1f}%). The algorithm is monitoring live exchange 1-minute candles from Upstox to protect you from false breakouts.")
         else:
-            st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now:**")
+            st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now (as of {last_t} IST):**")
 
             # ── Clean Table of Open Trades ──
             table_rows = []
