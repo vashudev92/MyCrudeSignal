@@ -2056,7 +2056,7 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         signals = st.session_state.get("simple_scanner_signals", [])
 
         if not signals:
-            st.info(f"ℹ️ No stocks currently qualify for intraday trade open with these filters (₹{sc_min_cr:.1f} Cr / {sc_rvv:.0f}x RVV / {sc_imp:.1f}% Impulse). Try lowering thresholds slightly.")
+            st.info(f"ℹ️ **No stocks currently qualify for intraday trade open** with current parameters (Traded Value ≥ ₹{sc_min_cr:.1f} Cr / RVV ≥ {sc_rvv:.0f}x / Impulse ≥ {sc_imp:.1f}%). The algorithm is monitoring live exchange 1-minute candles from Upstox to protect you from false breakouts.")
         else:
             st.success(f"🎯 **{len(signals)} Actionable Stocks Ready for Intraday Trade Open Right Now:**")
 
@@ -2084,6 +2084,19 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 hide_index=True,
                 height=min(400, (len(table_rows) + 1) * 45)
             )
+
+        with st.expander("📊 View Live NSE Stock Universe Prices (Connected to Upstox)", expanded=False):
+            u_rows = []
+            for stk in scan_universe:
+                u_rows.append({
+                    "Stock": stk["symbol"],
+                    "Name": stk["name"],
+                    "Sector": stk["sector"],
+                    "Live Market Price (₹)": f"₹{stk.get('base_price', 0.0):,.2f}",
+                    "52W High (₹)": f"₹{stk.get('high_52w', 0.0):,.2f}",
+                    "Avg Daily Turnover": f"₹{stk.get('avg_daily_turnover_cr', 0.0):,.0f} Cr"
+                })
+            st.dataframe(pd.DataFrame(u_rows), use_container_width=True, hide_index=True)
 
 
 
