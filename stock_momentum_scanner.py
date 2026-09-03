@@ -92,21 +92,22 @@ class ScannerSignal:
     stock: str
     stock_name: str
     sector: str
-    time: str
-    direction: str
-    current_price: float
-    entry_price: float
-    stop_loss: float
-    target1: float
-    target2: float
-    impulse_value_cr: float
-    rvv_multiple: float
-    impulse_move_pct: float
-    breakout_value_cr: float
-    breakout_multiple: float
-    consolidation_range_pct: float
-    fifty_two_week_break: bool
-    confidence_score: int
+    time: str = ""
+    direction: str = "BUY"
+    current_price: float = 0.0
+    entry_price: float = 0.0
+    stop_loss: float = 0.0
+    target1: float = 0.0
+    target2: float = 0.0
+    impulse_value_cr: float = 0.0
+    rvv_multiple: float = 0.0
+    impulse_move_pct: float = 0.0
+    breakout_value_cr: float = 0.0
+    breakout_multiple: float = 0.0
+    consolidation_range_pct: float = 0.0
+    consolidation_bars: int = 0
+    fifty_two_week_break: bool = False
+    confidence_score: int = 3
     chart_df: Optional[pd.DataFrame] = None
 
 
