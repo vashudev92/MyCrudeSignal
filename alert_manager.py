@@ -281,6 +281,46 @@ def send_tp_sl_alert(
     return send_telegram_message(msg)
 
 
+def send_nse_stock_alert(sig) -> bool:
+    """Send real-time breakout alert for NSE Intraday Stock to Telegram."""
+    token, chat_id, enabled = get_telegram_creds()
+    if not token or not chat_id:
+        return False
+
+    import pytz
+    from config import IST_TIMEZONE
+    IST = pytz.timezone(IST_TIMEZONE)
+    now_ist = datetime.now(IST).strftime("%H:%M:%S IST")
+
+    risk_pts = max(0.1, sig.entry_price - sig.stop_loss)
+    tag_52w = "⭐ 52-Week High Breakout" if sig.fifty_two_week_break else "Institutional Volume Breakout"
+    entry_time_str = getattr(sig, "entry_timestamp", "") or getattr(sig, "time", "") or now_ist
+
+    msg = (
+        f"🚀 <b>NSE INTRADAY STOCK BREAKOUT</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🏛️ <b>STOCK:</b> <b>{sig.stock}</b> ({sig.sector})\n"
+        f"🟢 <b>ACTION:</b> <b>INTRADAY BUY</b>\n"
+        f"🏷️ <b>SETUP:</b> {tag_52w}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"<blockquote>"
+        f"📍 <b>ENTRY PRICE:</b>  <b>₹{sig.entry_price:,.2f}</b>\n"
+        f"🛑 <b>STOP LOSS:</b>    <b>₹{sig.stop_loss:,.2f}</b> (-{risk_pts:.1f} pts)\n"
+        f"🎯 <b>TARGET 1 (1:3):</b> <b>₹{sig.target1:,.2f}</b> (+{risk_pts*3:.1f} pts)\n"
+        f"🚀 <b>TARGET 2 (1:4):</b> <b>₹{sig.target2:,.2f}</b> (+{risk_pts*4:.1f} pts)\n"
+        f"</blockquote>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⚡ <b>INSTITUTIONAL METRICS:</b>\n"
+        f"• <b>Volume Impulse:</b> ₹{sig.impulse_value_cr:.1f} Cr ({sig.rvv_multiple:.0f}x Median)\n"
+        f"• <b>1-Min Move:</b> +{sig.impulse_move_pct:.2f}%\n"
+        f"• <b>Breakout Time:</b> <code>{entry_time_str}</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⏰ <b>Alert Dispatched:</b> {now_ist}\n"
+        f"⚡ <i>Institutional Multi-Asset Pro Terminal</i>"
+    )
+    return send_telegram_message(msg, force=True)
+
+
 # ─── Alert Manager ────────────────────────────────────────────────────────────
 
 class AlertManager:

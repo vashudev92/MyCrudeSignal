@@ -2093,6 +2093,19 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 height=min(400, (len(table_rows) + 1) * 45)
             )
 
+            col_t1, col_t2 = st.columns([1.8, 2.2])
+            with col_t1:
+                if st.button("📲 Push All Qualified Trades to Telegram Now", key="btn_push_nse_tg"):
+                    from alert_manager import send_nse_stock_alert
+                    sent_cnt = 0
+                    for s in signals:
+                        if send_nse_stock_alert(s):
+                            sent_cnt += 1
+                    if sent_cnt > 0:
+                        st.success(f"✅ Dispatched {sent_cnt} trade alert(s) directly to your Telegram bot!")
+                    else:
+                        st.error("Failed to send alerts. Please verify Telegram bot settings.")
+
         with st.expander("📊 View Live NSE Stock Universe Prices (Connected to Upstox)", expanded=False):
             u_rows = []
             for stk in scan_universe:

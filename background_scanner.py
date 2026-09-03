@@ -37,6 +37,9 @@ _active_trade_trackers: dict[str, dict] = {}
 _post_loss_cooldowns: dict[str, float] = {}
 _daily_trade_counts: dict[str, int] = {}
 _daily_count_date: str = ""
+_last_nse_scan_time: float = 0.0
+_alerted_nse_stocks: dict[str, float] = {}
+_alerted_nse_candles: dict[str, str] = {}
 _lock = threading.Lock()
 
 
@@ -67,6 +70,7 @@ def is_asset_market_open(spec) -> bool:
 
 def _scanner_loop():
     global _scanner_running, _active_trade_trackers, _post_loss_cooldowns, _daily_trade_counts, _daily_count_date
+    global _last_nse_scan_time, _alerted_nse_stocks, _alerted_nse_candles
     print("[BackgroundScanner] 🚀 Multi-Asset 24/7 Autonomous Background Scanner Daemon Started.")
     client = get_client()
     engine = SignalEngine()
@@ -376,6 +380,40 @@ def _scanner_loop():
 
         except Exception as outer_e:
             print(f"[BackgroundScanner] Daemon error: {outer_e}")
+
+        # ── Autonomous NSE Intraday Stock Breakout Scanner (Runs every 60s during 09:15 - 15:30 IST) ──
+        try:
+            now_dt = datetime.now(IST)
+            is_nse_open = (
+                now_dt.weekday() < 5 and
+                ((now_dt.hour == 9 and now_dt.minute >= 15) or (9 < now_dt.hour < 15) or (now_dt.hour == 15 and now_dt.minute <= 30))
+            )
+            if is_nse_open and (time.time() - _last_nse_scan_time >= 60):
+                _last_nse_scan_time = time.time()
+                from stock_momentum_scanner import run_stock_momentum_scanner, NSE_STOCK_UNIVERSE
+                from alert_manager import send_nse_stock_alert
+
+                # Scan the liquid NSE universe with institutional parameters
+                nse_signals = run_stock_momentum_scanner(
+                    universe=NSE_STOCK_UNIVERSE,
+                    min_impulse=0.0030,  # 0.30%
+                    min_value_cr=2.5,    # Rs 2.5 Cr
+                    rvv_threshold=6.0,   # 6x Median
+                    filter_52w_high=False
+                )
+
+                for sig in nse_signals:
+                    last_alert_time = _alerted_nse_stocks.get(sig.stock, 0.0)
+                    last_candle = _alerted_nse_candles.get(sig.stock, "")
+                    # 30-minute cooldown per stock and skip if already alerted for this candle
+                    if (time.time() - last_alert_time >= 1800) and (last_candle != sig.time):
+                        _alerted_nse_stocks[sig.stock] = time.time()
+                        _alerted_nse_candles[sig.stock] = sig.time
+                        sent = send_nse_stock_alert(sig)
+                        if sent:
+                            print(f"[BackgroundScanner] 🚀 [TELEGRAM SENT] NSE Stock Breakout Alert: {sig.stock} ({sig.time}) Entry={sig.entry_price} SL={sig.stop_loss}")
+        except Exception as e_nse:
+            print(f"[BackgroundScanner] NSE Stock Scanner daemon error: {e_nse}")
 
         time.sleep(20)  # Scan every 20 seconds
 
