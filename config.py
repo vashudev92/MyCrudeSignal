@@ -98,7 +98,7 @@ NEWS_BEARISH_KEYWORDS = [
 # ─── Alert & Notification Settings ─────────────────────────────────────────────
 ENABLE_SOUND_ALERTS = True
 ALERT_COOLDOWN_SECONDS = 300
-ENABLE_TELEGRAM = False
+ENABLE_TELEGRAM = os.getenv("ENABLE_TELEGRAM", "true").lower() in ("true", "1", "yes")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 

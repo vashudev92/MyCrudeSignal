@@ -147,11 +147,13 @@ def _scanner_loop():
                                     date=prev_day_ohlc.get("date", "")
                                 )
                             else:
+                                dt_col = "date" if "date" in df_candles.columns else ("datetime" if "datetime" in df_candles.columns else None)
+                                date_str_val = str(df_candles[dt_col].iloc[-1]) if dt_col else str(datetime.now(IST).date())
                                 pivot = calculate_pivot_points(
                                     prev_high=float(df_candles["high"].max()),
                                     prev_low=float(df_candles["low"].min()),
                                     prev_close=float(df_candles["close"].iloc[-1]),
-                                    date=str(df_candles["date"].iloc[-1])
+                                    date=date_str_val
                                 )
 
                             indicators = compute_indicators(df_candles, pivot)
@@ -311,7 +313,8 @@ def _scanner_loop():
                                 )
 
                                 if signal.signal != SignalType.NEUTRAL:
-                                    candle_ts = str(df_candles["date"].iloc[-1]) if ("date" in df_candles and not df_candles.empty) else ""
+                                    dt_col = "datetime" if "datetime" in df_candles.columns else ("date" if "date" in df_candles.columns else None)
+                                    candle_ts = str(df_candles[dt_col].iloc[-1]) if (dt_col and not df_candles.empty) else ""
                                     trade_id = f"#{spec.symbol_keyword}_{now_dt.strftime('%y%m%d_%H%M')}"
                                     fired = alert_mgr.trigger(
                                         signal_type=signal.signal.value,
@@ -387,4 +390,10 @@ def start_background_scanner():
         _scanner_thread = threading.Thread(target=_scanner_loop, daemon=True, name="MultiCommodityScannerDaemon")
         _scanner_thread.start()
         print("[BackgroundScanner] Multi-Commodity thread launched successfully.")
+
+
+if __name__ == "__main__":
+    print("[BackgroundScanner] 🚀 Starting 24/7 Autonomous Scanner in standalone CLI mode...")
+    _scanner_running = True
+    _scanner_loop()
 
