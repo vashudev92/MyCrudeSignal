@@ -622,6 +622,9 @@ def is_market_open() -> bool:
 # ─── Main Application ─────────────────────────────────────────────────────────
 
 def main():
+    # ── Launch 24/7 Autonomous Background Scanner Daemon (Runs before PIN gate) ──
+    start_background_scanner()
+
     # ── Master Security PIN Gate (Optional via Secrets) ────────────────────────
     app_pin = ""
     try:
@@ -651,9 +654,6 @@ def main():
                     else:
                         st.error("Incorrect PIN. Access denied.")
             st.stop()
-
-    # ── Launch 24/7 Autonomous Background Scanner Daemon ──────────────────────
-    start_background_scanner()
 
     market_open = is_market_open()
     status_bg = "#ECFDF5" if market_open else "#FFF1F2"

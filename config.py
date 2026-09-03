@@ -8,6 +8,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Streamlit Cloud secrets integration
+try:
+    import streamlit as _st
+    if hasattr(_st, "secrets"):
+        for _k in ["UPSTOX_ACCESS_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "ENABLE_TELEGRAM", "APP_PIN", "NEWSDATA_API_KEY"]:
+            if _k in _st.secrets and not os.getenv(_k):
+                os.environ[_k] = str(_st.secrets[_k])
+except Exception:
+    pass
+
 # ─── Upstox Credentials ────────────────────────────────────────────────────────
 UPSTOX_API_KEY = os.getenv("UPSTOX_API_KEY", "")
 UPSTOX_API_SECRET = os.getenv("UPSTOX_API_SECRET", "")
