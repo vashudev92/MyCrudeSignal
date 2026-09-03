@@ -69,6 +69,7 @@ class Bar1Min:
     low: float
     close: float
     volume: float
+    date: str = ""
 
     @property
     def traded_value(self) -> float:
@@ -93,6 +94,8 @@ class ScannerSignal:
     stock_name: str
     sector: str
     time: str = ""
+    date: str = ""
+    entry_timestamp: str = ""
     direction: str = "BUY"
     current_price: float = 0.0
     entry_price: float = 0.0
@@ -250,14 +253,24 @@ def fetch_stock_1min_bars_upstox(stock: dict, date_str: str = "") -> List[Bar1Mi
         
         bars: List[Bar1Min] = []
         for _, row in df.iterrows():
-            t_str = row["datetime"].split("T")[1][:5]
+            raw_dt = str(row["datetime"])
+            if "T" in raw_dt:
+                d_part, t_part = raw_dt.split("T")
+                t_str = t_part[:5]
+            elif " " in raw_dt:
+                d_part, t_part = raw_dt.split(" ")
+                t_str = t_part[:5]
+            else:
+                d_part = date_str
+                t_str = raw_dt[:5]
             bars.append(Bar1Min(
                 time=t_str,
                 open=float(row["open"]),
                 high=float(row["high"]),
                 low=float(row["low"]),
                 close=float(row["close"]),
-                volume=float(row["volume"])
+                volume=float(row["volume"]),
+                date=d_part
             ))
         return bars
     except Exception:
@@ -388,10 +401,24 @@ def run_stock_momentum_scanner(
                 for b in bars[start_plot_idx:end_plot_idx]
             ])
 
+            b_date = getattr(breakout, "date", "")
+            if b_date:
+                try:
+                    b_date_fmt = datetime.strptime(b_date, "%Y-%m-%d").strftime("%d-%b")
+                except Exception:
+                    b_date_fmt = b_date
+            else:
+                b_date_fmt = datetime.now(IST).strftime("%d-%b")
+
+            entry_ts = f"{b_date_fmt} {breakout.time} IST"
+
             signals.append(ScannerSignal(
                 stock=sym,
                 stock_name=stock["name"],
                 sector=stock["sector"],
+                time=f"{breakout.time} IST",
+                date=b_date_fmt,
+                entry_timestamp=entry_ts,
                 current_price=round(bars[-1].close, 2),
                 impulse_value_cr=round(current_value / 10_000_000.0, 2),
                 impulse_move_pct=round(price_move * 100.0, 2),
@@ -403,8 +430,7 @@ def run_stock_momentum_scanner(
                 confidence_score=score,
                 fifty_two_week_break=fifty_two_week_break,
                 consolidation_bars=consolidation.bars_count,
-                chart_df=chart_df,
-                time=breakout.time
+                chart_df=chart_df
             ))
 
     return signals

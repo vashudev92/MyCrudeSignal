@@ -2069,9 +2069,13 @@ SIGNAL AT: <b>{signal.timestamp}</b>
             for s in signals:
                 risk_pts = max(1.0, s.entry_price - s.stop_loss)
                 tag_52w = "⭐ 52W Breakout" if s.fifty_two_week_break else "Standard Breakout"
+                entry_time_str = getattr(s, "entry_timestamp", "") or f"{getattr(s, 'time', '')}"
+                if not entry_time_str or entry_time_str == " IST":
+                    entry_time_str = f"Today {last_t} IST"
                 table_rows.append({
                     "Stock": s.stock,
                     "Action": "🟢 BUY",
+                    "Entry Time": entry_time_str,
                     "Entry (₹)": f"₹{s.entry_price:,.2f}",
                     "Stop Loss (₹)": f"₹{s.stop_loss:,.2f}",
                     "Target 1 (1:3 RR)": f"₹{s.target1:,.2f}",
