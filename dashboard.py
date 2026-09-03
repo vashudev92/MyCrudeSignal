@@ -2018,11 +2018,11 @@ SIGNAL AT: <b>{signal.timestamp}</b>
                 ]
                 sel_univ = st.selectbox("Stock Universe", universe_options, index=0, key="sc_univ_flt")
             with f2:
-                sc_min_cr = st.number_input("Min Volume (₹ Cr)", min_value=1.0, max_value=20.0, value=4.0, step=0.5, key="sc_min_cr_flt")
+                sc_min_cr = st.number_input("Min Volume (₹ Cr)", min_value=1.0, max_value=20.0, value=2.5, step=0.5, key="sc_min_cr_flt")
             with f3:
-                sc_rvv = st.number_input("Min RVV Multiple", min_value=5.0, max_value=50.0, value=10.0, step=1.0, key="sc_rvv_flt")
+                sc_rvv = st.number_input("Min RVV Multiple", min_value=3.0, max_value=30.0, value=6.0, step=1.0, key="sc_rvv_flt")
             with f4:
-                sc_imp = st.slider("Min Impulse %", min_value=0.4, max_value=3.0, value=0.8, step=0.1, key="sc_imp_flt")
+                sc_imp = st.slider("Min Impulse %", min_value=0.15, max_value=2.5, value=0.30, step=0.05, key="sc_imp_flt")
             with f5:
                 st.markdown("<div style='margin-top:28px;'></div>", unsafe_allow_html=True)
                 sc_52w = st.checkbox("⭐ 52W High Only", value=False, key="sc_52w_flt")

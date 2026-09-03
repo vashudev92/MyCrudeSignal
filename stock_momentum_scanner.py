@@ -406,6 +406,9 @@ def run_stock_momentum_scanner(
                 time=breakout.time
             ))
 
+    return signals
+
+
 @dataclass
 class ScannerBacktestReport:
     total_trades: int = 0
