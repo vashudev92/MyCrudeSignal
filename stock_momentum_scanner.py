@@ -222,47 +222,46 @@ def generate_synthetic_1min_bars(
 
 
 def fetch_stock_1min_bars_upstox(stock: dict, date_str: str = "") -> List[Bar1Min]:
-    """Fetch real 1-minute bars from Upstox API for a given stock."""
+    """Fetch real 1-minute bars from Upstox API for a given stock.
+    Uses intraday endpoint during live market hours, historical endpoint for past dates.
+    """
     from config import UPSTOX_ACCESS_TOKEN
     import requests
-    
+
     ikey = stock.get("instrument_key")
     if not ikey or not UPSTOX_ACCESS_TOKEN:
         return []
 
+    now_dt = datetime.now(IST)
+    today_str = now_dt.strftime("%Y-%m-%d")
+
+    # Determine if we need today's live data or historical
     if not date_str:
-        # Yesterday's date if before market open (09:15)
-        now_dt = datetime.now(IST)
-        if now_dt.hour < 9 or (now_dt.hour == 9 and now_dt.minute < 15):
-            date_str = (now_dt - timedelta(days=1)).strftime("%Y-%m-%d")
-        else:
-            date_str = now_dt.strftime("%Y-%m-%d")
+        nse_open = now_dt.hour > 9 or (now_dt.hour == 9 and now_dt.minute >= 15)
+        nse_close = now_dt.hour > 15 or (now_dt.hour == 15 and now_dt.minute >= 35)
+        is_weekday = now_dt.weekday() < 5
+        use_today = is_weekday and nse_open and not nse_close
+        date_str = today_str if use_today else (now_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        use_today = (date_str == today_str)
 
     headers = {"Accept": "application/json", "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"}
-    url = f"https://api.upstox.com/v2/historical-candle/{ikey}/1minute/{date_str}/{date_str}"
-    try:
-        r = requests.get(url, headers=headers, timeout=6)
-        if not r.ok:
-            return []
-        data = r.json().get("data", {}).get("candles", [])
-        if not data:
-            return []
 
+    def _parse_candles(data: list, fallback_date: str) -> List[Bar1Min]:
         df = pd.DataFrame(data, columns=["datetime", "open", "high", "low", "close", "volume", "oi"])
         df = df.sort_values("datetime").reset_index(drop=True)
-        
         bars: List[Bar1Min] = []
         for _, row in df.iterrows():
             raw_dt = str(row["datetime"])
             if "T" in raw_dt:
-                d_part, t_part = raw_dt.split("T")
-                t_str = t_part[:5]
+                d_part = raw_dt.split("T")[0]
+                t_str  = raw_dt.split("T")[1][:5]
             elif " " in raw_dt:
-                d_part, t_part = raw_dt.split(" ")
-                t_str = t_part[:5]
+                d_part = raw_dt.split(" ")[0]
+                t_str  = raw_dt.split(" ")[1][:5]
             else:
-                d_part = date_str
-                t_str = raw_dt[:5]
+                d_part = fallback_date
+                t_str  = raw_dt[:5]
             bars.append(Bar1Min(
                 time=t_str,
                 open=float(row["open"]),
@@ -273,8 +272,29 @@ def fetch_stock_1min_bars_upstox(stock: dict, date_str: str = "") -> List[Bar1Mi
                 date=d_part
             ))
         return bars
+
+    try:
+        # 1. Try intraday endpoint first when market is open today
+        if use_today:
+            url_intra = f"https://api.upstox.com/v2/historical-candle/intraday/{ikey}/1minute"
+            r = requests.get(url_intra, headers=headers, timeout=10)
+            if r.ok:
+                data = r.json().get("data", {}).get("candles", [])
+                if data:
+                    return _parse_candles(data, today_str)
+
+        # 2. Fall back to historical endpoint (works for past dates)
+        url_hist = f"https://api.upstox.com/v2/historical-candle/{ikey}/1minute/{date_str}/{date_str}"
+        r = requests.get(url_hist, headers=headers, timeout=10)
+        if not r.ok:
+            return []
+        data = r.json().get("data", {}).get("candles", [])
+        if not data:
+            return []
+        return _parse_candles(data, date_str)
     except Exception:
         return []
+
 
 
 def run_stock_momentum_scanner(
@@ -296,11 +316,11 @@ def run_stock_momentum_scanner(
         # 1. Attempt to fetch REAL 1-minute bars from Upstox API
         bars = fetch_stock_1min_bars_upstox(stock)
         
-        # Fallback to base price simulation with real price baseline if market is closed / no token
-        if not bars or len(bars) < (lookback_bars + 35):
+        # Fallback to base price simulation if market closed or no data available
+        if not bars or len(bars) < (lookback_bars + 5):
             bars = generate_synthetic_1min_bars(sym, stock["base_price"], num_bars=375, inject_setup=False)
 
-        if len(bars) < lookback_bars + 10:
+        if len(bars) < lookback_bars + 5:
             continue
 
         all_values = [b.traded_value for b in bars]
@@ -331,9 +351,6 @@ def run_stock_momentum_scanner(
             if not is_compressed(bars[i - lookback_bars:i]):
                 continue
 
-            # For the most recent bar (live signal), treat the impulse bar itself as the breakout
-            # and generate the signal immediately without needing future bars.
-            is_live_bar = (i >= len(bars) - 1)
             matched_signal = False
             for cons_len in range(5, 30):
                 cons_subset = bars[i + 1 : i + 1 + cons_len]
@@ -371,23 +388,22 @@ def run_stock_momentum_scanner(
                     break
 
             if not matched_signal:
-                # LIVE FAST-PATH: If this is one of the last 3 bars (most recent candles),
-                # fire immediately on the institutional impulse itself — no consolidation wait.
-                # This is the core live-trading mode: alert fires the SECOND the breakout candle closes.
-                if i >= len(bars) - 3:
-                    c_high = max(b.high for b in bars[max(0,i-5):i])
-                    c_low  = min(b.low  for b in bars[max(0,i-5):i])
-                    consolidation = ConsolidationZone(
-                        start_idx=max(0,i-5), end_idx=i,
-                        high=c_high, low=c_low,
-                        median_value=baseline_value,
-                        bars_count=5, impulse_bar_idx=i,
-                        impulse_traded_value=current_value
-                    )
-                    breakout = current
-                    matched_signal = True
-                else:
-                    continue
+                # Primary Institutional Impulse Breakout:
+                # When institutional volume surges out of compression, the impulse candle itself is the entry
+                c_high = max(b.high for b in bars[max(0, i - 5) : i]) if i >= 5 else current.low
+                c_low  = min(b.low  for b in bars[max(0, i - 5) : i]) if i >= 5 else current.low
+                consolidation = ConsolidationZone(
+                    start_idx=max(0, i - 5),
+                    end_idx=i,
+                    high=c_high,
+                    low=c_low,
+                    median_value=baseline_value,
+                    bars_count=5,
+                    impulse_bar_idx=i,
+                    impulse_traded_value=current_value
+                )
+                breakout = current
+                matched_signal = True
 
             fifty_two_week_break = (breakout.close > stock.get("high_52w", 999999.0))
 
@@ -452,8 +468,11 @@ def run_stock_momentum_scanner(
                 consolidation_bars=consolidation.bars_count,
                 chart_df=chart_df
             ))
+            # Take the primary breakout for this stock today
+            break
 
     return signals
+
 
 
 @dataclass
