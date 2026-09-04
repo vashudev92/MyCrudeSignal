@@ -300,7 +300,7 @@ def run_stock_momentum_scanner(
         if not bars or len(bars) < (lookback_bars + 35):
             bars = generate_synthetic_1min_bars(sym, stock["base_price"], num_bars=375, inject_setup=False)
 
-        if len(bars) < lookback_bars + 35:
+        if len(bars) < lookback_bars + 10:
             continue
 
         all_values = [b.traded_value for b in bars]
@@ -308,7 +308,8 @@ def run_stock_momentum_scanner(
         if baseline_value <= 0:
             baseline_value = 1.0
 
-        for i in range(lookback_bars, len(bars) - 35):
+        # Scan all bars from lookback_bars to the end — supports live trading (latest bar = current candle)
+        for i in range(lookback_bars, len(bars)):
             current = bars[i]
             current_value = current.traded_value
             rvv = current_value / baseline_value
@@ -330,6 +331,9 @@ def run_stock_momentum_scanner(
             if not is_compressed(bars[i - lookback_bars:i]):
                 continue
 
+            # For the most recent bar (live signal), treat the impulse bar itself as the breakout
+            # and generate the signal immediately without needing future bars.
+            is_live_bar = (i >= len(bars) - 1)
             matched_signal = False
             for cons_len in range(5, 30):
                 cons_subset = bars[i + 1 : i + 1 + cons_len]
@@ -367,7 +371,23 @@ def run_stock_momentum_scanner(
                     break
 
             if not matched_signal:
-                continue
+                # LIVE FAST-PATH: If this is one of the last 3 bars (most recent candles),
+                # fire immediately on the institutional impulse itself — no consolidation wait.
+                # This is the core live-trading mode: alert fires the SECOND the breakout candle closes.
+                if i >= len(bars) - 3:
+                    c_high = max(b.high for b in bars[max(0,i-5):i])
+                    c_low  = min(b.low  for b in bars[max(0,i-5):i])
+                    consolidation = ConsolidationZone(
+                        start_idx=max(0,i-5), end_idx=i,
+                        high=c_high, low=c_low,
+                        median_value=baseline_value,
+                        bars_count=5, impulse_bar_idx=i,
+                        impulse_traded_value=current_value
+                    )
+                    breakout = current
+                    matched_signal = True
+                else:
+                    continue
 
             fifty_two_week_break = (breakout.close > stock.get("high_52w", 999999.0))
 
