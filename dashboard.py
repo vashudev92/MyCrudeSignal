@@ -2039,6 +2039,36 @@ SIGNAL AT: <b>{signal.timestamp}</b>
         else:
             scan_universe = NSE_STOCK_UNIVERSE
 
+        # ── NSE Market Hours Gate ──────────────────────────────────────────────
+        now_ist = datetime.now(IST)
+        nse_open_time  = now_ist.replace(hour=9,  minute=15, second=0, microsecond=0)
+        nse_close_time = now_ist.replace(hour=15, minute=35, second=0, microsecond=0)
+        is_weekday = now_ist.weekday() < 5
+        nse_is_open = is_weekday and nse_open_time <= now_ist <= nse_close_time
+        mins_to_open = int((nse_open_time - now_ist).total_seconds() / 60) if now_ist < nse_open_time else 0
+        today_str = now_ist.strftime("%Y-%m-%d")
+
+        # Auto-clear stale signals from a previous trading day
+        if st.session_state.get("last_scan_date") != today_str:
+            st.session_state["simple_scanner_signals"] = []
+            st.session_state["last_flt_key"] = ""
+            st.session_state["last_scan_date"] = today_str
+
+        if not is_weekday:
+            st.warning("📅 **NSE is closed on weekends.** The scanner will be available Monday to Friday between 09:15 AM and 03:30 PM IST.")
+            st.stop()
+        elif not nse_is_open and now_ist < nse_open_time:
+            st.warning(
+                f"⏳ **NSE Market has NOT opened yet.**\n\n"
+                f"Market opens at **09:15 AM IST** — {mins_to_open} minutes from now.\n\n"
+                f"Come back at **09:40 – 10:00 AM** (first strong window) or **01:30 PM** (afternoon window) "
+                f"to scan for live institutional breakout setups."
+            )
+            st.stop()
+        elif not nse_is_open and now_ist > nse_close_time:
+            st.warning("🔔 **NSE Market is closed for today.** Trading hours are 09:15 AM – 03:30 PM IST. See you tomorrow!")
+            st.stop()
+
         # Run scanner when parameters change or scan button clicked
         params_key = f"{sel_univ}_{sc_min_cr}_{sc_rvv}_{sc_imp}_{sc_52w}"
         if scan_now or st.session_state.get("last_flt_key") != params_key:
